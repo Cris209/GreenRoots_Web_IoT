@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Voluntario - Green Roots</title>
+    
+    <link rel="stylesheet" href="/base.css"> 
+    <link rel="stylesheet" href="/header.css"> 
+    <link rel="stylesheet" href="/dashboard.css"> 
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+/* Estilos para el modal de registro de árbol (mantener aquí) */
+.modal {
+    display: none; 
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto; 
+    padding: 30px;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+.close-btn {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+}
+.close-btn:hover,
+.close-btn:focus {
+    color: var(--danger-red);
+    text-decoration: none;
+    cursor: pointer;
+}
+.registro-arbol-form .submit-btn {
+    background: linear-gradient(45deg, var(--primary-green), var(--accent-green));
+    color: var(--white);
+    border: none;
+    padding: 1rem;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 1.5rem;
+}
+
+/* ESTILOS ADAPTADOS PARA EL PANEL DE SENSORES (3 CARDS) */
+.sensor-data {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 columnas iguales */
+    gap: 15px;
+    padding: 1rem 0;
+}
+
+.data-card {
+    text-align: center;
+    padding: 15px 10px; /* Reducido el padding para que quepan */
+    border-radius: 10px;
+    background-color: var(--bg-light); 
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    min-width: 0; /* Asegura que no desborde en móvil */
+}
+
+.data-card i {
+    font-size: 1.5rem; /* Icono más pequeño */
+    margin-bottom: 0.2rem;
+}
+
+.hum-card i { color: #4682b4; /* Azul (Humedad) */ }
+.lat-card i { color: #f39c12; /* Naranja (Latitud) */ }
+.lon-card i { color: #c0392b; /* Rojo (Longitud) */ }
+
+.data-value {
+    display: block;
+    font-size: 1.8rem; /* Valor más pequeño para coordenadas */
+    font-weight: 700;
+    color: var(--text-dark);
+    line-height: 1;
+    overflow-wrap: break-word; /* Para manejar números largos */
+    word-break: break-all;
+}
+
+.data-unit {
+    font-size: 0.8rem; /* Unidad más pequeña */
+    color: var(--text-light);
+    margin-top: 5px;
+}
+
+/* ESTILOS NUEVOS PARA EL MAPA */
+#mapContainer {
+    height: 350px; /* Altura fija para el mapa */
+    border-radius: 10px;
+    margin-top: 15px;
+    z-index: 1; /* Necesario para que el mapa se muestre correctamente */
+}
+.map-panel {
+    /* Ocupa el espacio que antes era del Quick Actions/Chart, si es necesario */
+    grid-column: span 1; 
+}
+
+
+@media (max-width: 900px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr; /* Columna única en tablet/móvil */
+    }
+}
+
+@media (max-width: 600px) {
+    .sensor-data {
+        grid-template-columns: 1fr; /* Una sola columna en móvil */
+    }
+}
+
+
+    </style>
+
+    <script>
+        // LÓGICA DE PROTECCIÓN DE RUTA
+        function protectRoute(allowedRoles) {
+            const userDataJSON = localStorage.getItem("usuario");
+            const loginPage = "login.html";
+            const homePage = "index.html"; 
+
+            if (!userDataJSON) {
+                window.location.replace(loginPage);
+                return false;
+            }
+
+            const userData = JSON.parse(userDataJSON);
+            const userRol = userData.rol?.trim(); 
+
+            const userRolLower = userRol?.toLowerCase();
+            const allowedRolesLower = allowedRoles.map(r => r.toLowerCase());
+            
+            if (!userRol || !allowedRolesLower.includes(userRolLower)) {
+                alert("Acceso denegado. Solo el rol Voluntario tiene acceso a este panel.");
+                window.location.replace(homePage);
+                return false;
+            }
+            return true;
+        }
+
+        const isAllowed = protectRoute(['voluntario']);
+        
+        if (!isAllowed) {
+            // Esto detiene la ejecución del resto del script si la redirección ocurre
+            throw new Error("Acceso no autorizado. Redirección en curso."); 
+        }
+    </script>
+</head>
+<body>
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="logo">
+                    <i class="fas fa-seedling"></i>
+                    <h1>Green Roots</h1>
+                </div>
+                <ul class="nav-menu">
+                    <li><a href="/dashboard.html" class="nav-link active">Dashboard</a></li>
+                    <li id="gobiernoLink" style="display: none;"><a href="/gobierno.html" class="nav-link">Panel de Gobierno</a></li> 
+                    <li><a href="/index.html" class="nav-link">Inicio</a></li>
+                </ul>
+                <div class="user-menu">
+                    <div class="user-info">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="userName">Voluntario</span>
+                    </div>
+                    <button class="logout-btn" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Cerrar Sesión
+                    </button>
+                </div>
+                <div class="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="dashboard-main">
+        <div class="dashboard-container">
+            <div class="welcome-section">
+                <h1>¡Bienvenido a tu Dashboard! <span id="saludoNombre"></span></h1>
+                <p>Gestiona tus actividades de reforestación y monitorea tu impacto ambiental</p>
+            </div>
+
+            <div class="quick-stats">
+                <div class="stat-card">
+                    <div class="stat-icon trees"> <i class="fas fa-tree"></i> </div>
+                    <div class="stat-content">
+                        <h3>Árboles Plantados</h3>
+                        <span class="stat-number" id="arbolesPlantados">0</span>
+                        <span class="stat-trend positive" id="arbolesMes">+0 este mes</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon impact"> <i class="fas fa-leaf"></i> </div>
+                    <div class="stat-content">
+                        <h3>CO2 Absorbido</h3>
+                        <span class="stat-number">284kg</span>
+                        <span class="stat-trend positive">+67kg este mes</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon activities"> <i class="fas fa-calendar-check"></i> </div>
+                    <div class="stat-content">
+                        <h3>Actividades</h3>
+                        <span class="stat-number" id="numEventos">0</span>
+                        <span class="stat-trend neutral">Eventos próximos</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon rank"> <i class="fas fa-trophy"></i> </div>
+                    <div class="stat-content">
+                        <h3>Ranking</h3>
+                        <span class="stat-number">#47</span>
+                        <span class="stat-trend positive">↑12 posiciones</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                
+                <div class="dashboard-panel map-panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-map-marked-alt"></i> Ubicación del Sensor</h3>
+                    </div>
+                    <div id="mapContainer">
+                        </div>
+                </div>
+                
+                <div class="dashboard-panel sensor-panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-microchip"></i> Monitoreo del Sensor (Datos en Tiempo Real)</h3>
+                        <span id="estado-firebase" style="font-size: 0.8rem; color: var(--text-light);"><i class="fas fa-circle-notch fa-spin"></i> Inicializando...</span>
+                    </div>
+                    <div class="sensor-data">
+                        
+                        <div class="data-card hum-card">
+                            <i class="fas fa-tint"></i>
+                            <h4>Humedad</h4>
+                            <span class="data-value" id="humedad-sensor">--</span>
+                            <span class="data-unit">%</span>
+                        </div>
+                        
+                        <div class="data-card lat-card">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <h4>Latitud</h4>
+                            <span class="data-value" id="latitud-sensor">--</span>
+                            <span class="data-unit">°</span>
+                        </div>
+                        
+                        <div class="data-card lon-card">
+                            <i class="fas fa-globe-americas"></i>
+                            <h4>Longitud</h4>
+                            <span class="data-value" id="longitud-sensor">--</span>
+                            <span class="data-unit">°</span>
+                        </div>
+                    </div>
+                    <p style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: var(--text-light);">Datos de GreenRoots RTDB. Actualización: <span id="ultima-actualizacion">--</span></p>
+                </div>
+                
+                <div class="dashboard-panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-calendar-alt"></i> Próximas Actividades</h3>
+                        <button class="panel-btn" id="refreshEventosBtn"><i class="fas fa-sync-alt"></i></button>
+                    </div>
+                    <div class="activities-list" id="eventosContainer">
+                        <p style="padding: 1.5rem;"><i class="fas fa-spinner fa-spin"></i> Cargando eventos...</p>
+                    </div>
+                </div>
+                
+                <div class="dashboard-panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-bolt"></i> Acciones Rápidas</h3>
+                    </div>
+                    <div class="quick-actions">
+                        <button class="action-card" id="openRegistroModalBtn">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Registrar Árbol</span>
+                        </button>
+                        <button class="action-card">
+                            <i class="fas fa-calendar-plus"></i>
+                            <span>Agendar Actividad</span>
+                        </button>
+                        <button class="action-card">
+                            <i class="fas fa-share-alt"></i>
+                            <span>Compartir Progreso</span>
+                        </button>
+                        <button class="action-card">
+                            <i class="fas fa-download"></i>
+                            <span>Descargar Certificado</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="dashboard-panel chart-panel">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-chart-area"></i> Mi Impacto Ambiental</h3>
+                        <div class="chart-controls">
+                            <button class="chart-btn active">Mes</button>
+                            <button class="chart-btn">Año</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="impactChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2025 Green Roots. Panel de Voluntario.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <div id="registroModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2><i class="fas fa-tree" style="color: var(--primary-green);"></i> Registrar Árbol Plantado</h2>
+            <form id="registroArbolForm" class="registro-arbol-form login-form" style="margin-top: 20px;">
+                <div class="form-group">
+                    <label for="tipoArbol"><i class="fas fa-leaf"></i> Tipo de Árbol</label>
+                    <input type="text" id="tipoArbol" placeholder="Ej: Pino Silvestre" required>
+                </div>
+                <div class="form-group">
+                    <label for="ubicacionGps"><i class="fas fa-map-marker-alt"></i> Ubicación GPS (Lat, Lon)</label>
+                    <input type="text" id="ubicacionGps" placeholder="Haga click en 'Obtener GPS'" readonly required>
+                    <button type="button" id="btnGetGps" class="submit-btn" style="background: var(--warning-orange); font-size: 0.9rem;"><i class="fas fa-map-marker-alt"></i> Obtener GPS Actual</button>
+                </div>
+                <div class="form-group">
+                    <label for="fotoArbol"><i class="fas fa-camera"></i> Adjuntar Foto y Evidencia</label>
+                    <input type="file" id="fotoArbol" accept="image/*" required>
+                </div>
+                <button type="submit" class="submit-btn"><i class="fas fa-leaf"></i> Registrar Árbol</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script> <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script>
+        // CONFIGURACIÓN INICIAL
+        const API_URL = "https://greenroots-web.onrender.com/api"; 
+        const userDataJSON = localStorage.getItem("usuario");
+        const userData = userDataJSON ? JSON.parse(userDataJSON) : null;
+        
+        let firebaseApp; 
+        let db; 
+        
+        let map; // Variable global para la instancia del mapa
+        let currentMarker = null; // Variable para el marcador del sensor
+
+        const modal = document.getElementById("registroModal");
+        const btnOpenModal = document.getElementById("openRegistroModalBtn");
+        const btnCloseModal = document.getElementsByClassName("close-btn")[0];
+        
+        // Coordenadas predeterminadas (ejemplo: Chelsea, MA)
+        const DEFAULT_LAT = 42.3936888;
+        const DEFAULT_LON = -71.0412802;
+
+
+        // ===============================================
+        // 1. FUNCIONES DE FIREBASE
+        // ===============================================
+
+        /**
+         * Inicializa el mapa Leaflet en el contenedor 'mapContainer'.
+         */
+        function initializeMap() {
+            // Inicializa el mapa centrado en una ubicación por defecto
+            map = L.map('mapContainer').setView([DEFAULT_LAT, DEFAULT_LON], 13);
+
+            // Añade la capa de tiles (OpenStreetMap)
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            console.log("✅ Mapa Leaflet inicializado con éxito.");
+        }
+
+
+        /**
+         * Obtiene la configuración de la API, inicializa el SDK de Firebase 
+         * y AUTENTICA la conexión usando el token del backend.
+         */
+        async function initializeFirebase() {
+            // Se asume que el token y la config vienen de tu backend
+            const firebaseToken = localStorage.getItem('firebaseToken'); 
+            const estadoElement = document.getElementById('estado-firebase');
+
+            if (!userData) {
+                estadoElement.textContent = "Usuario no autenticado.";
+                return false;
+            }
+
+            try {
+                estadoElement.textContent = "Obteniendo configuración...";
+                
+                // Usamos una configuración estática para la demo, asumiendo que el backend 
+                // usa la URL de tu RTDB (lo más crítico para este caso de uso)
+                const firebaseConfig = {
+                    databaseURL: "https://greenroot-6dbfe-default-rtdb.firebaseio.com/"
+                };
+                
+                // 2. INICIALIZACIÓN DE FIREBASE CORE
+                firebaseApp = firebase.initializeApp(firebaseConfig);
+                db = firebase.database(); 
+                
+                estadoElement.textContent = "Conectado al RTDB.";
+                console.log("✅ Conexión de Firebase inicializada con éxito.");
+                
+                // NOTA: La lógica de autenticación se omite según el código original
+                
+                return true;
+                
+            } catch (error) { 
+                console.error("❌ Fallo al inicializar Firebase:", error);
+                estadoElement.textContent = `ERROR: ${error.message.split(":")[0] || "No se pudo conectar"}`;
+                return false;
+            }
+        }
+        
+        /**
+         * Monitorea datos del nodo /greenroots en tiempo real (Realtime Database)
+         * y actualiza el mapa.
+         */
+        function loadSensorData() {
+            if (!db) {
+                console.warn("No se puede iniciar el monitoreo: Firebase DB no está inicializada.");
+                return;
+            }
+
+            // Referencia al nodo principal de datos '/greenroots'
+            const greenrootsRef = db.ref('greenroots'); 
+            
+            // Elementos del DOM a actualizar
+            const humElement = document.getElementById('humedad-sensor');
+            const latElement = document.getElementById('latitud-sensor');
+            const lonElement = document.getElementById('longitud-sensor');
+            const estadoElement = document.getElementById('estado-firebase');
+            const ultimaActElement = document.getElementById('ultima-actualizacion');
+            
+            greenrootsRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                
+                if (data) {
+                    // 1. Actualizar los valores en el panel
+                    const humedad = data.humedad !== undefined ? parseFloat(data.humedad).toFixed(1) : '--';
+                    const latitud = data.latitud !== undefined ? parseFloat(data.latitud) : null;
+                    const longitud = data.longitud !== undefined ? parseFloat(data.longitud) : null;
+
+                    humElement.textContent = humedad;
+                    latElement.textContent = latitud !== null ? latitud.toFixed(6) : '--';
+                    lonElement.textContent = longitud !== null ? longitud.toFixed(6) : '--';
+
+                    // 2. Actualizar el marcador en el mapa
+                    if (map && latitud !== null && longitud !== null) {
+                        const newLatLng = new L.LatLng(latitud, longitud);
+
+                        if (currentMarker) {
+                            // Mueve el marcador existente a la nueva posición
+                            currentMarker.setLatLng(newLatLng);
+                            currentMarker.setPopupContent(`<b>Sensor GreenRoots</b><br>Humedad: ${humedad}%<br>Lat: ${latitud.toFixed(6)}, Lon: ${longitud.toFixed(6)}`).openPopup();
+                        } else {
+                            // Crea un nuevo marcador
+                            currentMarker = L.marker(newLatLng).addTo(map)
+                                .bindPopup(`<b>Sensor GreenRoots</b><br>Humedad: ${humedad}%<br>Lat: ${latitud.toFixed(6)}, Lon: ${longitud.toFixed(6)}`)
+                                .openPopup();
+                        }
+                        
+                        // Centra el mapa en el marcador, si es la primera vez que se carga o si el cambio es significativo
+                        if (!map.getBounds().contains(newLatLng)) {
+                           map.setView(newLatLng, 13);
+                        }
+                        
+                    } else if (map && latitud !== null && longitud !== null) {
+                        // Caso especial: El mapa está inicializado pero el marcador aún no.
+                        // Esto garantiza que el marcador se agregue incluso si la primera lectura no es perfecta.
+                         const newLatLng = new L.LatLng(latitud, longitud);
+                         currentMarker = L.marker(newLatLng).addTo(map)
+                            .bindPopup(`<b>Sensor GreenRoots</b><br>Humedad: ${humedad}%<br>Lat: ${latitud.toFixed(6)}, Lon: ${longitud.toFixed(6)}`)
+                            .openPopup();
+                         map.setView(newLatLng, 13);
+                    }
+                    
+                    // 3. Actualizar el estado y la hora
+                    const timeString = new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit', second: '2-digit'});
+                    estadoElement.innerHTML = `<i class="fas fa-check-circle" style="color: var(--primary-green);"></i> Monitoreando RTDB.`;
+                    ultimaActElement.textContent = timeString;
+
+                } else {
+                    humElement.textContent = latElement.textContent = lonElement.textContent = '--';
+                    estadoElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="color: #f39c12;"></i> Conectado, pero el nodo /greenroots está vacío.`;
+                    ultimaActElement.textContent = 'N/A';
+                    
+                    if (currentMarker) {
+                        map.removeLayer(currentMarker);
+                        currentMarker = null;
+                    }
+                }
+            }, (error) => {
+                console.error("Error al leer datos del sensor:", error);
+                estadoElement.innerHTML = `<i class="fas fa-times-circle" style="color: var(--danger-red);"></i> Error de lectura de datos.`;
+                ultimaActElement.textContent = 'Error';
+            });
+        }
+
+
+        // ===============================================
+        // 2. FUNCIONES DE UTILIDAD Y BACKEND EXISTENTES (CON CORRECCIÓN)
+        // ===============================================
+        
+        // ... (Tu código de logout, modal, y manejo de registro de árbol se mantiene aquí) ...
+        
+        function logout() {
+            localStorage.clear();
+            alert("Has cerrado sesión.");
+            window.location.replace("login.html");
+        }
+
+        // Lógica de Modal
+        btnOpenModal.onclick = function() {
+            modal.style.display = "flex";
+            document.getElementById('registroArbolForm').reset(); 
+        }
+
+        btnCloseModal.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Obtener GPS
+        document.getElementById('btnGetGps')?.addEventListener('click', () => {
+            const gpsInput = document.getElementById('ubicacionGps');
+            gpsInput.value = "Obteniendo GPS...";
+
+            if (!navigator.geolocation) {
+                gpsInput.value = "No soportado";
+                alert("Tu navegador no soporta geolocalización.");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition((position) => {
+                const { latitude, longitude } = position.coords;
+                gpsInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                alert(`✅ GPS obtenido: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+            }, (error) => {
+                gpsInput.value = "Error al obtener GPS";
+                alert(`❌ Error al obtener GPS: ${error.message}. Asegúrate de permitir la geolocalización.`);
+            });
+        });
+
+        // Manejar el Registro del Árbol (CONECTADO AL BACKEND)
+        document.getElementById('registroArbolForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitButton = e.submitter;
+            const tipoArbol = document.getElementById('tipoArbol').value;
+            const ubicacionGps = document.getElementById('ubicacionGps').value;
+            const fotoArbol = document.getElementById('fotoArbol').files[0]; 
+            
+            // 1. Obtener el token de autenticación del usuario logeado
+            const authToken = userData?.token; 
+
+            // 2. Comprobación de campos y token (Se requiere el token para el backend protegido)
+            if (!tipoArbol || !ubicacionGps || !fotoArbol) {
+                alert("Error: Por favor, completa todos los campos del formulario.");
+                return;
+            }
+            if (!userData || !authToken) {
+                // Esto resuelve el error 401 y el error de "Acceso denegado. Se requiere token."
+                alert("Error de autenticación: Por favor, inicie sesión de nuevo. Se requiere el token de acceso.");
+                return;
+            }
+
+
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+            
+            const formData = new FormData();
+            formData.append('voluntarioid', userData.id || userData.email); 
+            formData.append('tipoarbol', tipoArbol); 
+            formData.append('ubicaciongps', ubicacionGps); 
+            formData.append('evidenciaFoto', fotoArbol); 
+
+            try {
+                const response = await fetch(`${API_URL}/arboles/registrar`, {
+                    method: 'POST',
+                    // 3. AGREGAR EL ENCABEZADO DE AUTORIZACIÓN CON EL TOKEN
+                    headers: {
+                        'Authorization': `Bearer ${authToken}` 
+                        // Nota: El navegador gestiona Content-Type automáticamente al usar FormData
+                    },
+                    body: formData 
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    // Muestra el error específico que viene del backend (incluyendo el 401)
+                    console.error("Error en la respuesta del servidor:", result);
+                    alert(`❌ Error al registrar: ${result.mensaje || "Error desconocido. Código HTTP: " + response.status}`); 
+                    throw new Error(result.mensaje || `Fallo en el registro con código ${response.status}`);
+                }
+                
+                alert(`✅ ¡Registro Exitoso! ${result.mensaje}`);
+                document.getElementById('registroArbolForm').reset();
+                modal.style.display = "none";
+                cargarEstadisticas(); 
+                
+            } catch (error) {
+                console.error("Error en el registro:", error);
+                alert("❌ Error de conexión o servidor al registrar el árbol.");
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="fas fa-leaf"></i> Registrar Árbol';
+            }
+        });
+
+        // Cargar Eventos
+        async function cargarEventos() {
+            const eventosContainer = document.getElementById('eventosContainer');
+            eventosContainer.innerHTML = '<p style="padding: 1.5rem;"><i class="fas fa-spinner fa-spin"></i> Cargando eventos...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/eventos/activos`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    eventosContainer.innerHTML = '<p style="color: var(--danger-red); padding: 1.5rem;"><i class="fas fa-exclamation-circle"></i> Error al cargar eventos.</p>';
+                    return;
+                }
+                
+                const eventos = data.eventos || [];
+                
+                document.getElementById('numEventos').textContent = eventos.length;
+
+                if (eventos.length === 0) {
+                    eventosContainer.innerHTML = '<p style="color: var(--text-light); padding: 1.5rem;"><i class="fas fa-info-circle"></i> No hay eventos programados por ahora.</p>';
+                    return;
+                }
+                
+                eventosContainer.innerHTML = '';
+                
+                eventos.slice(0, 3).forEach(evento => { 
+                    const fecha = new Date(evento.fecha);
+                    const dia = fecha.getDate().toString().padStart(2, '0');
+                    const mes = fecha.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase().replace('.', '');
+                    
+                    const eventoItem = document.createElement('div');
+                    eventoItem.className = 'activity-item';
+                    eventoItem.innerHTML = `
+                        <div class="activity-date">
+                            <span class="day">${dia}</span>
+                            <span class="month">${mes}</span>
+                        </div>
+                        <div class="activity-info">
+                            <h4>${evento.titulo}</h4>
+                            <p><i class="fas fa-map-marker-alt"></i> ${evento.ubicacion || 'Ubicación pendiente'}</p>
+                            <p><i class="fas fa-clock"></i> ${evento.hora || 'Hora pendiente'}</p>
+                        </div>
+                        <button class="join-btn">Unirse</button>
+                    `;
+                    eventosContainer.appendChild(eventoItem);
+                });
+
+            } catch (error) {
+                console.error("Error al obtener eventos:", error);
+                eventosContainer.innerHTML = '<p style="color: var(--danger-red); padding: 1.5rem;"><i class="fas fa-exclamation-circle"></i> Error de conexión con el servidor.</p>';
+            }
+        }
+
+        // Cargar Estadísticas (Dummy data)
+        function cargarEstadisticas() {
+            const arboles = 125; 
+            document.getElementById('arbolesPlantados').textContent = arboles;
+            document.getElementById('arbolesMes').textContent = `+${Math.floor(arboles * 0.1)} este mes`;
+        }
+
+
+        // ===============================================
+        // 3. LÓGICA DE INICIO Y EVENTOS
+        // ===============================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (isAllowed) {
+                // Mostrar nombre de usuario
+                if (userData) {
+                    const nombre = userData.nombre || userData.email || 'Voluntario';
+                    document.getElementById('userName').textContent = nombre;
+                    document.getElementById('saludoNombre').textContent = nombre;
+                }
+                
+                // 1. Inicializa el mapa ANTES de cualquier cosa (para asegurar que el contenedor esté listo)
+                initializeMap();
+                
+                // 2. Inicializa Firebase, y si tiene éxito, inicia el monitoreo.
+                initializeFirebase().then((success) => {
+                    if (success) {
+                        loadSensorData(); 
+                    }
+                });
+                
+                // 3. Cargar datos de la API (no dependientes de Firebase)
+                cargarEventos();
+                cargarEstadisticas();
+
+                // 4. Gráfico (Chart.js)
+                const ctx = document.getElementById('impactChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Árboles Plantados',
+                            data: [2, 5, 8, 12, 15, 18],
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.3,
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+                
+                // 5. Lógica de Menú Móvil
+                const hamburger = document.querySelector('.hamburger');
+                const navMenu = document.querySelector('.nav-menu');
+                const userMenu = document.querySelector('.user-menu');
+
+                hamburger.addEventListener('click', () => {
+                    navMenu.classList.toggle('open');
+                    userMenu.classList.toggle('open');
+                    hamburger.classList.toggle('active');
+                });
+            }
+        });
+        
+        // Asignar el evento al botón de refresco
+        document.getElementById('refreshEventosBtn')?.addEventListener('click', () => {
+            cargarEventos();
+        });
+
+        // Hacer la función logout accesible globalmente
+        window.logout = logout; 
+
+    </script>
+</body>
+</html>

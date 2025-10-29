@@ -1,0 +1,207 @@
+/* /style.css - Archivo UNIFICADO y CORREGIDO */
+
+/* ----------------------------------
+ * 1. Global Variables (Colores y Fuentes)
+ * ESSENTIAL: Estas variables son ESENCIALES para que dashboard.css funcione correctamente.
+ * ---------------------------------- */
+:root {
+    /* Colores primarios */
+    --primary-green: #2d5f4f; /* Verde oscuro principal */
+    --light-green: #4a8269; /* Verde intermedio (para degradados) */
+    --accent-green: #6ba387; /* Verde claro de acento (para botones/links) */
+    --forest-green: #1e4037; /* Verde muy oscuro (para el fondo del login) */
+    --success-green: #27ae60; /* Verde de éxito */
+
+    /* Colores de advertencia y peligro */
+    --warning-orange: #f39c12;
+    --danger-red: #e74c3c;
+
+    /* Colores de fondo y texto */
+    --white: #ffffff;
+    --light-bg: #f8fffe; /* Fondo claro para tarjetas y secciones */
+    --text-dark: #2c3e50; /* Texto oscuro */
+    --text-light: #7f8c8d; /* Texto gris claro */
+    
+    /* Sombra y Transiciones */
+    --shadow: rgba(0, 0, 0, 0.1); /* Sombra genérica */
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Transición suave */
+    
+    /* Tipografía */
+    --font-poppins: 'Poppins', sans-serif;
+}
+
+/* ----------------------------------
+ * 2. Base Reset and Typography
+ * ---------------------------------- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-poppins);
+    line-height: 1.6;
+    color: var(--text-dark);
+    background-color: var(--light-bg); /* Fondo base */
+    min-height: 100vh;
+}
+
+a {
+    text-decoration: none;
+    color: var(--primary-green);
+    transition: var(--transition);
+}
+
+a:hover {
+    color: var(--accent-green);
+}
+
+/* ----------------------------------
+ * 3. General Form Styles (Usado por Dashboard.css)
+ * Estos estilos aseguran la consistencia de los inputs en toda la app.
+ * ---------------------------------- */
+
+.form-group {
+    /* Define la separación y estructura de los grupos de formulario */
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    /* Estilo para las etiquetas de los campos */
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.form-group input,
+.form-group select {
+    /* Estilo para los campos de texto y select genéricos */
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: var(--transition);
+    background: var(--white);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    /* Estilo de enfoque para inputs */
+    outline: none;
+    border-color: var(--accent-green);
+    box-shadow: 0 0 0 3px rgba(107, 163, 135, 0.1);
+}
+
+/* ----------------------------------
+ * 4. Header (Navbar) - Estilos para otras páginas (opcional)
+ * Estos estilos no afectan el login/registro, pero son necesarios para el resto del sitio.
+ * ---------------------------------- */
+
+.header {
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    background: var(--primary-green);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.navbar {
+    padding: 0.75rem 0;
+}
+
+.nav-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: var(--white);
+}
+
+.logo-img {
+    height: 50px; 
+    width: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.logo h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.nav-menu {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.nav-link {
+    color: var(--white);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.logout-btn {
+    background: var(--danger-red);
+    color: var(--white);
+}
+
+/* ----------------------------------
+ * 5. Footer Styles
+ * ---------------------------------- */
+.footer {
+    background: var(--text-dark);
+    color: var(--light-bg);
+    padding: 1rem 0;
+    text-align: center;
+    width: 100%;
+}
+
+.footer-bottom {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.footer-bottom p {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* ----------------------------------
+ * 6. Media Queries for Responsiveness
+ * ---------------------------------- */
+@media (max-width: 768px) {
+    .nav-container {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 0.5rem 1rem;
+    }
+    .nav-menu {
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 100%;
+        text-align: center;
+    }
+    .nav-link {
+        display: block;
+    }
+}

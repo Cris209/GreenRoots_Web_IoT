@@ -1,0 +1,177 @@
+/* ----------------------------------
+ * /frontend/header.css
+ * Navigation and Footer Styles
+ * ---------------------------------- */
+
+/* Header (Navbar) Styles */
+.header {
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    background: var(--primary-green);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.navbar {
+    padding: 0.75rem 0;
+}
+
+.nav-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: var(--white);
+}
+
+.logo h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.logo i {
+    font-size: 1.8rem;
+}
+
+.nav-menu {
+    display: flex;
+    list-style: none;
+    gap: 1.5rem;
+}
+
+.nav-link {
+    color: var(--white);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.nav-link:hover, .nav-link.active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* User Menu */
+.user-menu {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--white);
+    font-weight: 500;
+}
+
+.user-info i {
+    font-size: 1.5rem;
+}
+
+.logout-btn {
+    background: var(--danger-red); /* Estilo primario de botón de peligro */
+    color: var(--white);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.logout-btn:hover {
+    background: #c0392b; /* Rojo más oscuro al pasar el ratón */
+    transform: translateY(-1px);
+}
+
+
+/* Footer Styles */
+.footer {
+    background: var(--text-dark);
+    color: var(--light-bg);
+    padding: 1rem 0;
+    text-align: center;
+    width: 100%;
+}
+
+.footer-bottom {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.footer-bottom p {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Mobile Hamburger */
+.hamburger {
+    display: none; /* Oculto en escritorio */
+    cursor: pointer;
+    padding: 10px;
+    margin-left: 1rem;
+}
+
+.hamburger span {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background: var(--white);
+    margin: 5px 0;
+    transition: 0.3s;
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .nav-menu, .user-menu {
+        display: none; /* Se maneja con JS para el toggle */
+        flex-direction: column;
+        width: 100%;
+        text-align: center;
+        background: var(--primary-green);
+        position: absolute;
+        top: 60px; 
+        left: 0;
+        padding-bottom: 1rem;
+    }
+    
+    .nav-container {
+        flex-wrap: wrap; 
+        padding: 0 1rem;
+    }
+    
+    .hamburger {
+        display: block; 
+    }
+    
+    .nav-menu.open, .user-menu.open {
+        display: flex;
+    }
+
+    .user-menu.open {
+        top: initial;
+        left: initial;
+        position: static;
+        margin-top: 1rem;
+    }
+    
+    .user-info {
+        display: none;
+    }
+}

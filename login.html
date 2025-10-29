@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Green Roots - Iniciar Sesión</title>
+    
+    <link rel="stylesheet" href="/style.css"> 
+    
+    <link rel="stylesheet" href="/dashboard.css">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4a8269">
+</head>
+<body>
+    <div class="login-container">
+        
+        <div class="login-card" id="loginCard">
+            <div class="login-header">
+                <div class="logo">
+                    <i class="fas fa-seedling"></i>
+                    <h1>Green Roots</h1>
+                </div>
+                <h2>Iniciar Sesión</h2>
+                <p>Accede a tu panel de control ambiental</p>
+            </div>
+            
+            <form class="login-form" id="loginForm">
+                <div class="form-group">
+                    <label for="email">
+                        <i class="fas fa-envelope"></i> Correo Electrónico
+                    </label>
+                    <input type="email" id="email" name="email" required placeholder="tu@email.com">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">
+                        <i class="fas fa-lock"></i> Contraseña
+                    </label>
+                    <input type="password" id="password" name="password" required placeholder="••••••••">
+                </div>
+                
+                <div class="form-options">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="remember">
+                        <span class="checkmark"></span>
+                        Recordar sesión
+                    </label>
+                    <a href="#" class="forgot-password">¿Olvidaste tu contraseña?</a>
+                </div>
+                
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>¿No tienes cuenta? <a href="#" onclick="showRegisterForm()">Regístrate aquí</a></p>
+                <p><a href="/index.html">← Volver al inicio</a></p>
+                <p id="mensaje-login-error" style="color: var(--danger-red); margin-top: 10px;"></p>
+            </div>
+        </div>
+        
+        <div class="login-card" id="registerCard" style="display: none;">
+            <div class="login-header">
+                <div class="logo">
+                    <i class="fas fa-seedling"></i>
+                    <h1>Green Roots</h1>
+                </div>
+                <h2>Crear Cuenta</h2>
+                <p>Únete a nuestra comunidad de voluntarios</p>
+            </div>
+            
+            <form class="login-form" id="registerForm">
+                <div class="form-group">
+                    <label for="regName"><i class="fas fa-user"></i> Nombre Completo</label>
+                    <input type="text" id="regName" name="name" required placeholder="Tu nombre completo">
+                </div>
+                
+                <div class="form-group">
+                    <label for="regEmail"><i class="fas fa-envelope"></i> Correo Electrónico</label>
+                    <input type="email" id="regEmail" name="email" required placeholder="tu@email.com">
+                </div>
+                
+                <div class="form-group">
+                    <label for="regPassword"><i class="fas fa-lock"></i> Contraseña</label>
+                    <input type="password" id="regPassword" name="password" required placeholder="••••••••">
+                </div>
+                
+                <div class="form-group">
+                    <label for="regConfirmPassword"><i class="fas fa-lock"></i> Confirmar Contraseña</label>
+                    <input type="password" id="regConfirmPassword" name="confirmPassword" required placeholder="••••••••">
+                </div>
+                
+                <div class="form-options" style="justify-content: center;">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="acceptTerms" required>
+                        <span class="checkmark"></span>
+                        Acepto los términos y condiciones
+                    </label>
+                </div>
+                
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-user-plus"></i> Crear Cuenta
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>¿Ya tienes cuenta? <a href="#" onclick="showLoginForm()">Inicia sesión</a></p>
+                <p><a href="/index.html">← Volver al inicio</a></p>
+                <p id="mensaje-registro-error" style="color: var(--danger-red); margin-top: 10px;"></p>
+            </div>
+        </div>
+        
+        <div class="login-background">
+            <div class="floating-elements">
+                <div class="floating-leaf leaf-1"><i class="fas fa-leaf"></i></div>
+                <div class="floating-leaf leaf-2"><i class="fas fa-leaf"></i></div>
+                <div class="floating-leaf leaf-3"><i class="fas fa-leaf"></i></div>
+                <div class="floating-leaf leaf-4"><i class="fas fa-seedling"></i></div>
+                <div class="floating-leaf leaf-5"><i class="fas fa-tree"></i></div>
+            </div>
+        </div>
+    </div>
+
+ <script>
+    const API_URL = "https://greenroots-web.onrender.com/api"; 
+    
+    // Función para cambiar entre formularios
+    function showRegisterForm() {
+        document.getElementById('loginCard').style.display = 'none';
+        document.getElementById('registerCard').style.display = 'block';
+    }
+
+    function showLoginForm() {
+        document.getElementById('loginCard').style.display = 'block';
+        document.getElementById('registerCard').style.display = 'none';
+    }
+    
+    // Función centralizada para la redirección después del login
+    function redirectToDashboard(rol) {
+        let destinationUrl = "index.html"; // Por defecto, si el rol no coincide
+
+        switch (rol.toLowerCase()) {
+            case 'administrador':
+                destinationUrl = "/admin_panel.html"; 
+                break;
+            case 'voluntario':
+                destinationUrl = "/dashboard.html"; 
+                break;
+            case 'gobierno':
+                destinationUrl = "/dashboard_gobierno.html"; 
+                break;
+            // Si tienes más roles, añádelos aquí
+            default:
+                console.warn("Rol desconocido:", rol, ". Redirigiendo a index.html");
+                break;
+        }
+
+        window.location.replace(destinationUrl);
+    }
+
+    // Manejo del formulario de LOGIN
+    // Manejo del formulario de LOGIN (BLOQUE CORREGIDO)
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    // ... (Código para deshabilitar botón y manejo de errores)
+
+    try {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        const response = await fetch(`${API_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            // CORRECCIÓN: Unir los datos del usuario (que contiene 'rol') con el token (que a menudo está en la raíz).
+            const userDetails = result.usuario || {}; // Obtenemos la parte de 'usuario'
+            
+            // Creamos un objeto final, priorizando el token del nivel superior
+            const finalUserData = {
+                id: userDetails.id || result.id,
+                email: userDetails.email || result.email,
+                nombre: userDetails.nombre || result.nombre, // Aseguramos el nombre
+                rol: userDetails.rol,
+                // ESTO ES CLAVE: Asumimos que el token JWT está en result.token
+                token: result.token 
+            };
+
+            // Paso 1: Guardar la información completa del usuario, incluyendo el TOKEN
+            localStorage.setItem("usuario", JSON.stringify(finalUserData));
+            
+            // Paso 2: Redirección CONDICIONAL según el rol
+            const userRol = finalUserData.rol; // Usamos el rol del objeto unificado
+            redirectToDashboard(userRol);
+
+        } else {
+            mensajeError.textContent = result.mensaje || 'Error al iniciar sesión. Verifica tus credenciales.';
+        }
+    } catch (error) {
+        mensajeError.textContent = 'Error de conexión con el servidor.';
+        console.error("Error de conexión:", error);
+    } finally {
+        // El botón solo se habilita si hay un error de conexión/credenciales
+            if (!response.ok) {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+    }
+});
+
+    // Manejo del formulario de REGISTRO (SIN CAMBIOS RELEVANTES)
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = e.target.querySelector('.login-btn');
+        const originalText = submitBtn.innerHTML;
+        const mensajeError = document.getElementById('mensaje-registro-error');
+        mensajeError.textContent = '';
+        
+        const password = document.getElementById('regPassword').value;
+        const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+        if (password !== confirmPassword) {
+            mensajeError.textContent = 'Las contraseñas no coinciden.';
+            return;
+        }
+        
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+        submitBtn.disabled = true;
+
+        try {
+            const formData = {
+                nombre: document.getElementById('regName').value,
+                email: document.getElementById('regEmail').value,
+                password: password,
+                rol: 'voluntario' // Asumimos que el registro es para voluntarios
+            };
+
+            const response = await fetch(`${API_URL}/registro`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                mensajeError.textContent = '¡Registro exitoso! Ya puedes iniciar sesión.';
+                mensajeError.style.color = 'var(--success-green)';
+                setTimeout(showLoginForm, 2000); 
+            } else {
+                mensajeError.textContent = result.mensaje || 'Error al registrar. Intenta con otro correo.';
+            }
+        } catch (error) {
+            mensajeError.textContent = 'Error de conexión con el servidor.';
+            console.error("Error de conexión:", error);
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    });
+
+    // REGISTRO DEL SERVICE WORKER (PWA)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js') 
+          .then(registration => {
+            console.log('SW registrado con éxito. Scope:', registration.scope);
+          })
+          .catch(error => {
+            console.error('Fallo al registrar SW:', error);
+          });
+      });
+    }
+</script>
+</body>
+</html>
