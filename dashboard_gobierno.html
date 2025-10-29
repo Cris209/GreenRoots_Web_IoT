@@ -4,10 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Control Gubernamental</title>
+
+    <link rel="manifest" href="/manifest.json">
+
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-    
+    <script>
+        // LÓGICA DE PROTECCIÓN DE RUTA
+        function protectRoute(allowedRoles) {
+            const userDataJSON = localStorage.getItem("usuario");
+            const loginPage = "login.html";
+            const homePage = "index.html"; 
+
+            if (!userDataJSON) {
+                window.location.replace(loginPage);
+                return false;
+            }
+
+            const userData = JSON.parse(userDataJSON);
+            const userRol = userData.rol?.trim(); 
+
+            const userRolLower = userRol?.toLowerCase();
+            const allowedRolesLower = allowedRoles.map(r => r.toLowerCase());
+            
+            if (!userRol || !allowedRolesLower.includes(userRolLower)) {
+                alert("Acceso denegado. Solo el rol Gobierno tiene acceso a este panel.");
+                window.location.replace(homePage);
+                return false;
+            }
+            return true;
+        }
+
+        const isAllowed = protectRoute(['gobierno']);
+        
+        if (!isAllowed) {
+            // Esto detiene la ejecución del resto del script si la redirección ocurre
+            throw new Error("Acceso no autorizado. Redirección en curso."); 
+        }
+    </script>
     <style>
         /* =======================================================
            ESTILOS COMBINADOS DE styles.css Y gobierno.css

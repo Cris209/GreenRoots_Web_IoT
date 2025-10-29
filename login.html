@@ -163,59 +163,63 @@
         window.location.replace(destinationUrl);
     }
 
-    // Manejo del formulario de LOGIN
-    // Manejo del formulario de LOGIN (BLOQUE CORREGIDO)
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    // ... (Código para deshabilitar botón y manejo de errores)
+
+    const submitBtn = e.target.querySelector('.login-btn');
+    const originalText = submitBtn.innerHTML;
+    const mensajeError = document.getElementById('mensaje-login-error');
+    mensajeError.textContent = '';
+
+    // Activar animación de carga
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando...';
+    submitBtn.disabled = true;
+
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
 
     try {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-
         const response = await fetch(`${API_URL}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok) {
-            // CORRECCIÓN: Unir los datos del usuario (que contiene 'rol') con el token (que a menudo está en la raíz).
-            const userDetails = result.usuario || {}; // Obtenemos la parte de 'usuario'
-            
-            // Creamos un objeto final, priorizando el token del nivel superior
+            const userDetails = result.usuario || {};
             const finalUserData = {
                 id: userDetails.id || result.id,
                 email: userDetails.email || result.email,
-                nombre: userDetails.nombre || result.nombre, // Aseguramos el nombre
+                nombre: userDetails.nombre || result.nombre,
                 rol: userDetails.rol,
-                // ESTO ES CLAVE: Asumimos que el token JWT está en result.token
-                token: result.token 
+                token: result.token
             };
 
-            // Paso 1: Guardar la información completa del usuario, incluyendo el TOKEN
             localStorage.setItem("usuario", JSON.stringify(finalUserData));
-            
-            // Paso 2: Redirección CONDICIONAL según el rol
-            const userRol = finalUserData.rol; // Usamos el rol del objeto unificado
-            redirectToDashboard(userRol);
+            redirectToDashboard(finalUserData.rol);
 
         } else {
-            mensajeError.textContent = result.mensaje || 'Error al iniciar sesión. Verifica tus credenciales.';
+            // Mensajes de error específicos
+            if (result.mensaje?.toLowerCase().includes('correo')) {
+                mensajeError.textContent = 'El correo ingresado no está registrado.';
+            } else if (result.mensaje?.toLowerCase().includes('contraseña')) {
+                mensajeError.textContent = 'La contraseña es incorrecta.';
+            } else {
+                mensajeError.textContent = result.mensaje || 'Error al iniciar sesión. Verifica tus credenciales.';
+            }
         }
     } catch (error) {
         mensajeError.textContent = 'Error de conexión con el servidor.';
         console.error("Error de conexión:", error);
     } finally {
-        // El botón solo se habilita si hay un error de conexión/credenciales
-            if (!response.ok) {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }
+        // Restaurar botón
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
     }
 });
+
 
     // Manejo del formulario de REGISTRO (SIN CAMBIOS RELEVANTES)
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
