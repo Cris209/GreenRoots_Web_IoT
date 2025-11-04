@@ -14,7 +14,7 @@
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    
+    <script type="module" src="/indexeddb-utils.js"></script>
     <style>
         /* CSS adicional para asegurar que el mapa se renderice correctamente */
         #mapContainer {
@@ -220,7 +220,9 @@
     
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <script>
+    <script type="module">
+        import { openDB, putItem, getAllItems, STORE_EVENTOS } from '/indexeddb-utils.js';
+
         // La URL de tu Backend desplegado (Ajusta esto a tu URL real de Render)
         const API_URL = "https://greenroots-web.onrender.com/api"; 
         
@@ -951,7 +953,15 @@
                 ubicacion: document.getElementById('eventoUbicacion').value,
                 activo: document.getElementById('eventoActivo').checked
             };
-            
+            // Crea el objeto de datos que será guardado en IndexedDB
+        const eventoData = {
+            nombre: nombre,
+            fecha: fecha,
+            ubicacion: ubicacion,
+            descripcion: descripcion,
+            // Agrega cualquier otro campo relevante (ej. 'creadoPor', 'timestamp')
+            timestamp: new Date().toISOString()
+        };
             try {
                 const headers = getAuthHeaders(); // ✅ Obtener headers aquí
                 if (!headers['Authorization']) {
@@ -974,6 +984,9 @@
                 alert('Evento creado exitosamente');
                 document.getElementById('createEventoModal').style.display = 'none';
                 document.getElementById('createEventoForm').reset();
+                // **[NUEVO] Guarda el evento en IndexedDB**
+                const id = await putItem(STORE_EVENTOS, eventoData); 
+                console.log('Evento creado y guardado en IndexedDB con ID:', id);
                 loadEventos();
                 
             } catch (error) {
@@ -1000,6 +1013,13 @@
 
         // Inicializar la lista, el mapa y Firebase al cargar la página
         document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await openDB(); 
+                console.log("IndexedDB abierta exitosamente.");
+            } catch (error) {
+                console.error("No se pudo abrir IndexedDB:", error);
+            }
+
              if (isAllowed) {
                 // [Existente] Carga UI de validación
                 updateValidationUI();
