@@ -124,10 +124,121 @@
     grid-column: span 1; 
 }
 
+/* Estilos para la lista de árboles */
+.arboles-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 0;
+    list-style: none;
+}
+
+.arbol-item {
+    background: var(--light-bg);
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px var(--shadow);
+    border-left: 5px solid var(--accent-green);
+    transition: var(--transition);
+}
+
+.arbol-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--shadow);
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #ddd;
+    padding-bottom: 5px;
+}
+
+.tree-species {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-green);
+}
+
+.item-detail {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    margin: 5px 0;
+}
+
+.item-detail i {
+    color: var(--accent-green);
+    margin-right: 5px;
+}
+
+.status-pendiente {
+    background-color: var(--warning-orange);
+    color: var(--white);
+}
+
+.status-aprobado {
+    background-color: var(--success-green);
+    color: var(--white);
+}
+
+.status-rechazado {
+    background-color: var(--danger-red);
+    color: var(--white);
+}
+
+.tree-status {
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* Estilos para el toggle de la sección de árboles */
+.hidden-section {
+    display: none !important; 
+}
+
+/* Ajuste de Flexbox para la tarjeta */
+#arbolesStatCard {
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out; 
+    /* 🚨 CLAVE: Usamos flex para separar el contenido y la flecha */
+    display: flex; 
+    justify-content: space-between;
+    align-items: center;
+}
+#arbolesStatCard:hover {
+    transform: translateY(-3px);
+}
+
+/* 🚨 NUEVO: Estilos para la flecha */
+.toggle-arrow {
+    font-size: 1.2rem;
+    color: var(--text-light);
+    transition: transform 0.3s ease; /* Transición suave para la rotación */
+    margin-left: 10px; /* Espacio entre el texto y la flecha */
+}
+
+/* 🚨 NUEVO: Clase para rotar la flecha (apunta hacia abajo cuando está abierto) */
+.toggle-arrow.rotated {
+    transform: rotate(90deg); /* Rota 90 grados a la derecha */
+}
+/* 🚨 FIN NUEVO CSS */
 
 @media (max-width: 900px) {
     .dashboard-grid {
         grid-template-columns: 1fr; /* Columna única en tablet/móvil */
+    }
+    /* Asegurar que la tarjeta se vea bien en móvil */
+    .stat-card {
+        padding: 15px; 
+    }
+    /* Permite que el contenido del stat card (título, número) ocupe su propio espacio */
+    #arbolesStatCard .stat-content {
+        flex-grow: 1;
+        margin-right: 15px;
     }
 }
 
@@ -214,13 +325,16 @@
             </div>
 
             <div class="quick-stats">
-                <div class="stat-card">
-                    <div class="stat-icon trees"> <i class="fas fa-tree"></i> </div>
-                    <div class="stat-content">
-                        <h3>Árboles Plantados</h3>
-                        <span class="stat-number" id="arbolesPlantados">0</span>
-                        <span class="stat-trend positive" id="arbolesMes">+0 este mes</span>
+                <div class="stat-card" id="arbolesStatCard" role="button" tabindex="0">
+                    <div style="display: flex; align-items: center;">
+                        <div class="stat-icon trees"> <i class="fas fa-tree"></i> </div>
+                        <div class="stat-content">
+                            <h3>Árboles Plantados</h3>
+                            <span class="stat-number" id="arbolesPlantados">0</span>
+                            <span class="stat-trend positive" id="arbolesMes">+0 este mes</span>
+                        </div>
                     </div>
+                    <i class="fas fa-chevron-right toggle-arrow" id="arbolesToggleArrow"></i>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon impact"> <i class="fas fa-leaf"></i> </div>
@@ -247,6 +361,18 @@
                     </div>
                 </div>
             </div>
+
+            <section class="dashboard-panel" id="arbolesRegistradosSection">
+                <h2 class="panel-title">Mis Árboles Registrados</h2>
+                <div class="panel-actions">
+                    <button id="refreshArbolesBtn" class="action-btn-mini">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                </div>
+                <div id="arbolesListContainer" class="list-container">
+                    <p class="loading-message">Cargando tus árboles...</p>
+                </div>
+            </section>
 
             <div class="dashboard-grid">
                 
@@ -543,9 +669,199 @@
         // ===============================================
         // 2. FUNCIONES DE UTILIDAD Y BACKEND EXISTENTES (CON CORRECCIÓN)
         // ===============================================
-        
+        // dashboard.html (dentro del bloque <script>)
+
+// 2. Función para obtener los encabezados de autenticación
+function getAuthHeaders() {
+    // Intenta obtener la información completa del usuario del localStorage
+    const userDataJSON = localStorage.getItem('usuario');
+    
+    if (!userDataJSON) {
+        // Si no hay datos, retorna encabezados vacíos. El backend devolverá 401.
+        return {};
+    }
+
+    const userData = JSON.parse(userDataJSON);
+    
+    // 🚨 CLAVE: El token está dentro del objeto de usuario bajo la clave 'token'
+    const authToken = userData.token; 
+    
+    // Si tienes información de rol que el backend requiere (opcional, pero buena práctica)
+    const userRol = userData.rol;
+
+    const headers = {
+        // Es una buena práctica incluir Content-Type
+        'Content-Type': 'application/json' 
+    };
+
+    if (authToken) {
+        // Formato estándar 'Bearer Token' para autenticación
+        headers['Authorization'] = `Bearer ${authToken}`; 
+    }
+    
+    if (userRol) {
+        headers['X-User-Rol'] = userRol; 
+    }
+
+    return headers;
+}
         // ... (Tu código de logout, modal, y manejo de registro de árbol se mantiene aquí) ...
+        function getCurrentUserUid() {
+    const userDataJSON = localStorage.getItem("usuario");
+    if (userDataJSON) {
+        const userData = JSON.parse(userDataJSON);
+        // ✅ CORRECTO: Asume que el ID del voluntario está guardado como 'uid' en el objeto de usuario
+        return userData.id; 
+    }
+    return null;
+}
+
+// Función principal para cargar los árboles del usuario
+// dashboard.html (dentro del bloque <script>)
+
+async function cargarArboles() {
+    const userId = getCurrentUserUid();
+    const arbolesContainer = document.getElementById('arbolesListContainer');
+
+    if (!userId) {
+        arbolesContainer.innerHTML = '<p class="error-message">Error: No se encontró el ID del usuario logueado.</p>';
+        return;
+    }
+    
+    arbolesContainer.innerHTML = '<p class="loading-message"><i class="fas fa-spinner fa-spin"></i> Cargando árboles...</p>';
+
+    try {
+        const headers = getAuthHeaders();
+
+        // Verificación extra en el frontend antes de la llamada
+        if (!headers['Authorization']) {
+            throw new Error("Acceso denegado. El token de autenticación no está disponible.");
+        }
+
+        const response = await fetch(`${API_URL}/arboles/voluntario/${userId}`, {
+            headers: headers
+        });
         
+        // 🚨 Manejo específico de errores 401 y 403 (Unauthorized/Forbidden)
+        if (response.status === 401 || response.status === 403) {
+            const errorData = await response.json();
+            // Lanza un error forzado que activará el bloque catch
+            throw new Error(errorData.mensaje || "Tu sesión ha expirado o no tienes permisos. Por favor, vuelve a iniciar sesión.");
+        }
+        
+        const data = await response.json();
+
+        if (!response.ok) {
+             throw new Error(data.mensaje || `Error ${response.status} al obtener la lista de árboles.`);
+        }
+
+        displayArboles(data.arboles || []);
+
+    } catch (error) {
+        console.error("Error al cargar árboles:", error);
+        // Muestra una alerta para el usuario y actualiza el mensaje de la lista
+        alert(`❌ Fallo en la carga de árboles: ${error.message}`); 
+        arbolesContainer.innerHTML = `<p class="error-message">❌ Error de conexión: ${error.message}</p>`;
+        
+        // Si el error es de autenticación, redirigir al login
+        if (error.message.includes('sesión ha expirado')) {
+             // Limpia la sesión
+             localStorage.clear();
+             // Redirige
+             window.location.replace("login.html");
+        }
+    }
+}
+// dashboard.html (dentro del bloque <script>)
+
+// dashboard.html (dentro del bloque <script>)
+
+// Función de ayuda para manejar Timestamps de Firestore y fechas estándar
+// dashboard.html (dentro del bloque <script>)
+
+/**
+ * Función robusta para convertir Timestamps de Firestore o Cadenas ISO 8601 a un objeto Date válido.
+ */
+/**
+ * Función robusta para convertir Timestamps de Firestore o Cadenas ISO 8601 a un objeto Date válido.
+ */
+function convertTimestampToDate(timestamp) {
+    if (!timestamp) return null;
+
+    let date;
+    
+    // 🚨 CORRECCIÓN CLAVE: Verifica si tiene la propiedad '_seconds' (con guion bajo)
+    if (typeof timestamp === 'object' && timestamp.hasOwnProperty('_seconds')) {
+        // Usa la propiedad con guion bajo que confirmamos en la consola
+        date = new Date(timestamp._seconds * 1000); 
+    } 
+    // Opción 2: Si por alguna razón Express serializa sin el guion bajo (fallback)
+    else if (typeof timestamp === 'object' && timestamp.hasOwnProperty('seconds')) {
+        date = new Date(timestamp.seconds * 1000);
+    } 
+    // Opción 3: Manejar cualquier otra cadena o número (Formato ISO)
+    else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+        date = new Date(timestamp);
+    }
+    else {
+        return null; // El formato es desconocido
+    }
+    
+    // 3. Verifica si la conversión resultó en una fecha inválida
+    return isNaN(date.getTime()) ? null : date;
+}
+
+
+/**
+ * Función para renderizar la lista de árboles.
+ */
+function displayArboles(arboles) {
+    const arbolesContainer = document.getElementById('arbolesListContainer');
+    arbolesContainer.innerHTML = ''; 
+
+    if (arboles.length === 0) {
+        arbolesContainer.innerHTML = '<p class="info-message">Aún no has registrado árboles.</p>';
+        return;
+    }
+
+    const list = document.createElement('ul');
+    list.className = 'arboles-list'; 
+    list.style.cssText = 'list-style: none; padding: 0;';
+    
+    arboles.forEach(arbol => {
+        const listItem = document.createElement('li'); 
+        listItem.className = 'arbol-item';
+        
+        // Conversión de fechas con la función corregida
+        const fechaRegistroDate = convertTimestampToDate(arbol.fecharegistro);
+        const fechaRegistro = fechaRegistroDate ? fechaRegistroDate.toLocaleDateString() : 'N/A';
+        
+        const fechaValidacionDate = convertTimestampToDate(arbol.fechavalidacion);
+        const fechaValidacion = fechaValidacionDate ? fechaValidacionDate.toLocaleDateString() : 'Pendiente';
+        
+        // Uso de 'ubicacion' sin acento (CONFIRMADO por el servidor)
+        const ubicacion = arbol.ubicacion || 'Ubicación no registrada'; 
+        
+        const estado = arbol.estadovalidacion || 'Pendiente';
+        const estadoClase = estado.toLowerCase();
+        
+        listItem.innerHTML = `
+            <div class="item-header">
+                <span class="tree-species">${arbol.tipodearbol || 'Tipo Desconocido'}</span>
+                <span class="tree-status status-${estadoClase}">${estado}</span>
+            </div>
+            <p class="item-detail"><i class="fas fa-seedling"></i> ID: ${arbol.id.substring(0, 8)}...</p>
+            <p class="item-detail"><i class="fas fa-calendar-alt"></i> Registrado: ${fechaRegistro}</p>
+            <p class="item-detail"><i class="fas fa-map-marker-alt"></i> Ubicación (GPS): ${ubicacion}</p>
+            <p class="item-detail"><i class="fas fa-check-circle"></i> Fecha Validación: <strong>${fechaValidacion}</strong></p>
+            <p class="item-detail"><i class="fas fa-link"></i> Foto: <a href="${arbol.fotourl}" target="_blank" style="color: var(--accent-green);">Ver Evidencia</a></p>
+        `;
+        list.appendChild(listItem);
+    });
+
+    arbolesContainer.appendChild(list);
+}
+
         function logout() {
             localStorage.clear();
             alert("Has cerrado sesión.");
@@ -730,6 +1046,30 @@
                     document.getElementById('saludoNombre').textContent = nombre;
                 }
                 
+                // --- LÓGICA NUEVA PARA EL TOGGLE DE ÁRBOLES ---
+                const arbolesSection = document.getElementById('arbolesRegistradosSection');
+                const arbolesStatCard = document.getElementById('arbolesStatCard');
+                const arbolesToggleArrow = document.getElementById('arbolesToggleArrow'); // 🚨 NUEVO: Referencia a la flecha
+
+                // 🚨 ACCIÓN 1: Ocultar la sección de árboles por defecto
+                arbolesSection.classList.add('hidden-section'); 
+                // La flecha empieza no rotada (apuntando a la derecha)
+
+                // 🚨 ACCIÓN 2: Asignar el evento de click a la tarjeta
+                arbolesStatCard?.addEventListener('click', () => {
+                    // Muestra/Oculta la sección
+                    arbolesSection.classList.toggle('hidden-section');
+                    
+                    // 🚨 NUEVO: Rota la flecha
+                    arbolesToggleArrow.classList.toggle('rotated');
+                    
+                    // Si la sección NO está oculta, cargar/refrescar los datos.
+                    if (!arbolesSection.classList.contains('hidden-section')) {
+                        cargarArboles(); 
+                    }
+                });
+                // --- FIN LÓGICA TOGGLE ---
+
                 // 1. Inicializa el mapa ANTES de cualquier cosa (para asegurar que el contenedor esté listo)
                 initializeMap();
                 
@@ -739,7 +1079,7 @@
                         loadSensorData(); 
                     }
                 });
-                
+    
                 // 3. Cargar datos de la API (no dependientes de Firebase)
                 cargarEventos();
                 cargarEstadisticas();
@@ -776,7 +1116,10 @@
                 });
             }
         });
-        
+        // Asignar el evento al botón de refresco
+    document.getElementById('refreshArbolesBtn')?.addEventListener('click', () => {
+        cargarArboles();
+    });
         // Asignar el evento al botón de refresco
         document.getElementById('refreshEventosBtn')?.addEventListener('click', () => {
             cargarEventos();
