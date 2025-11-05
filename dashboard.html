@@ -227,6 +227,49 @@
 }
 /* 🚨 FIN NUEVO CSS */
 
+.notificacion-humedad {
+    padding: 10px 15px;
+    border-radius: 10px; /* Consistente con otros elementos del dashboard */
+    font-weight: 600;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 90%; 
+    max-width: 400px;
+    margin: 0 auto; /* Para centrar la notificación */
+    font-size: 0.95rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Sombra suave */
+}
+
+.notificacion-humedad i {
+    font-size: 1.2rem;
+}
+
+/* Clases de Estado basadas en base.css */
+/* ÉXITO: Humedad 20% a 50% */
+.status-success {
+    background-color: var(--light-green); 
+    color: var(--primary-green); 
+    border: 1px solid var(--accent-green);
+}
+
+/* ADVERTENCIA: Humedad < 20% (Necesita agua) */
+.status-warning {
+    background-color: #fff3cd; /* Amarillo suave */
+    color: var(--warning-orange); 
+    border: 1px solid var(--warning-orange);
+}
+
+/* PELIGRO: Humedad > 50% (Se está ahogando) */
+.status-danger {
+    background-color: #f8d7da; /* Rojo suave */
+    color: var(--danger-red); 
+    border: 1px solid var(--danger-red);
+}
+
+
 @media (max-width: 900px) {
     .dashboard-grid {
         grid-template-columns: 1fr; /* Columna única en tablet/móvil */
@@ -413,6 +456,10 @@
                         </div>
                     </div>
                     <p style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: var(--text-light);">Datos de GreenRoots RTDB. Actualización: <span id="ultima-actualizacion">--</span></p>
+                    
+                    <div id="humedad-notificacion" class="notificacion-humedad" style="display: none; margin-top: 15px;">
+                        <i class="fas fa-spinner fa-pulse"></i> Cargando estado...
+                    </div>
                 </div>
                 
                 <div class="dashboard-panel">
@@ -579,7 +626,44 @@
                 return false;
             }
         }
-        
+        /**
+         * Determina y muestra la notificación de riego basada en la lectura de humedad.
+         * @param {number} humedad - La lectura de humedad del sensor (0-100).
+         */
+        function updateHumedadNotification(humedad) {
+            const notificacionElement = document.getElementById('humedad-notificacion');
+            if (!notificacionElement) return;
+
+            notificacionElement.style.display = 'flex'; // Mostrar el elemento
+
+            let mensaje = '';
+            let claseStatus = '';
+            let icono = '';
+            
+            const humDisplay = humedad.toFixed(0);
+
+            // Lógica de umbrales solicitada
+            if (humedad > 50) {
+                // > 50%: Se está ahogando (PELIGRO)
+                mensaje = `¡ALERTA! La planta **se está ahogando** (${humDisplay}%).`;
+                claseStatus = 'status-danger';
+                icono = 'fas fa-exclamation-triangle';
+            } else if (humedad >= 20 && humedad <= 50) {
+                // 20% - 50%: Está bien de agua (ÉXITO)
+                mensaje = `La planta **está bien de agua** (${humDisplay}%).`;
+                claseStatus = 'status-success';
+                icono = 'fas fa-check-circle';
+            } else { // Humedad < 20
+                // < 20%: Necesita agua (ADVERTENCIA)
+                mensaje = `La planta **necesita agua** (${humDisplay}%).`;
+                claseStatus = 'status-warning';
+                icono = 'fas fa-hand-holding-water';
+            }
+            
+            notificacionElement.innerHTML = `<i class="${icono}"></i> ${mensaje}`;
+            // Asigna la clase de estado actual
+            notificacionElement.className = 'notificacion-humedad ' + claseStatus; 
+        }
         /**
          * Monitorea datos del nodo /greenroots en tiempo real (Realtime Database)
          * y actualiza el mapa.
@@ -603,17 +687,35 @@
             greenrootsRef.on('value', (snapshot) => {
                 const data = snapshot.val();
                 
+                // Elemento de notificación
+                const notifElement = document.getElementById('humedad-notificacion');
+
                 if (data) {
-                    // 1. Actualizar los valores en el panel
-                    const humedad = data.humedad !== undefined ? parseFloat(data.humedad).toFixed(1) : '--';
+                    // 1. Obtener y actualizar los valores en el panel
+                    // Usamos humedadNum para la lógica y humedad (string con .toFixed(1)) para el DOM.
+                    const humedadNum = data.humedad !== undefined ? parseFloat(data.humedad) : null;
+                    const humedad = humedadNum !== null ? humedadNum.toFixed(1) : '--';
+
                     const latitud = data.latitud !== undefined ? parseFloat(data.latitud) : null;
                     const longitud = data.longitud !== undefined ? parseFloat(data.longitud) : null;
 
                     humElement.textContent = humedad;
                     latElement.textContent = latitud !== null ? latitud.toFixed(6) : '--';
                     lonElement.textContent = longitud !== null ? longitud.toFixed(6) : '--';
-
-                    // 2. Actualizar el marcador en el mapa
+                    
+                    // -------------------------------------------------------------------
+                    // 2. LLAMADA A LA FUNCIÓN DE NOTIFICACIÓN DE HUMEDAD (AQUÍ VA)
+                    // -------------------------------------------------------------------
+                    if (humedadNum !== null) {
+                        updateHumedadNotification(humedadNum); 
+                    } else if (notifElement) {
+                        // Si hay datos pero la humedad es nula, mostrar mensaje de dato faltante
+                        notifElement.className = 'notificacion-humedad status-warning'; 
+                        notifElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Dato de humedad no disponible.';
+                        notifElement.style.display = 'flex';
+                    }
+                    
+                    // 3. Actualizar el marcador en el mapa
                     if (map && latitud !== null && longitud !== null) {
                         const newLatLng = new L.LatLng(latitud, longitud);
 
@@ -635,23 +737,28 @@
                         
                     } else if (map && latitud !== null && longitud !== null) {
                         // Caso especial: El mapa está inicializado pero el marcador aún no.
-                        // Esto garantiza que el marcador se agregue incluso si la primera lectura no es perfecta.
-                         const newLatLng = new L.LatLng(latitud, longitud);
-                         currentMarker = L.marker(newLatLng).addTo(map)
+                        const newLatLng = new L.LatLng(latitud, longitud);
+                        currentMarker = L.marker(newLatLng).addTo(map)
                             .bindPopup(`<b>Sensor GreenRoots</b><br>Humedad: ${humedad}%<br>Lat: ${latitud.toFixed(6)}, Lon: ${longitud.toFixed(6)}`)
                             .openPopup();
-                         map.setView(newLatLng, 13);
+                        map.setView(newLatLng, 13);
                     }
                     
-                    // 3. Actualizar el estado y la hora
+                    // 4. Actualizar el estado y la hora
                     const timeString = new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit', second: '2-digit'});
                     estadoElement.innerHTML = `<i class="fas fa-check-circle" style="color: var(--primary-green);"></i> Monitoreando RTDB.`;
                     ultimaActElement.textContent = timeString;
 
                 } else {
+                    // Si no hay datos, limpia la UI
                     humElement.textContent = latElement.textContent = lonElement.textContent = '--';
                     estadoElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="color: #f39c12;"></i> Conectado, pero el nodo /greenroots está vacío.`;
                     ultimaActElement.textContent = 'N/A';
+                    
+                    // Ocultar notificación
+                    if (notifElement) {
+                        notifElement.style.display = 'none'; 
+                    }
                     
                     if (currentMarker) {
                         map.removeLayer(currentMarker);
@@ -664,7 +771,6 @@
                 ultimaActElement.textContent = 'Error';
             });
         }
-
 
         // ===============================================
         // 2. FUNCIONES DE UTILIDAD Y BACKEND EXISTENTES (CON CORRECCIÓN)
