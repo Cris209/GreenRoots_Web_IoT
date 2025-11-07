@@ -380,11 +380,12 @@
                     <i class="fas fa-chevron-right toggle-arrow" id="arbolesToggleArrow"></i>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon impact"> <i class="fas fa-leaf"></i> </div>
-                    <div class="stat-content">
-                        <h3>CO2 Absorbido</h3>
-                        <span class="stat-number">284kg</span>
-                        <span class="stat-trend positive">+67kg este mes</span>
+                    <div class="stat-icon co2">
+                        <i class="fas fa-seedling"></i> </div>
+                    <div class="stat-info">
+                        <div class="stat-label">Calidad del Suelo (OCD)</div>
+                        <span id="soil-quality-value" class="stat-number">...</span> 
+                        <span id="soil-quality-status" class="stat-trend">Cargando GPS...</span>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -553,7 +554,8 @@
         
         let firebaseApp; 
         let db; 
-        
+        let database;
+        let token;
         let map; // Variable global para la instancia del mapa
         let currentMarker = null; // Variable para el marcador del sensor
 
@@ -990,6 +992,171 @@ function displayArboles(arboles) {
             }
         }
 
+        // ======================================================
+    // 2. NUEVA LÓGICA PARA LA CALIDAD DEL SUELO
+    // ======================================================
+
+    /**
+     * Llama al endpoint del backend para obtener la calidad del suelo por coordenadas.
+     */
+    function obtenerCalidadSuelo(lat, lon, token) {
+    const valueElement = document.getElementById('soil-quality-value');
+    const statusElement = document.getElementById('soil-quality-status');
+
+    valueElement.textContent = 'Buscando...';
+    statusElement.textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+
+    // ⚠️ IMPORTANTE: REEMPLAZA esta URL con la base de tu backend en Render
+    const backendUrl = `https://greenroots-web.onrender.com/api/soil-quality/${lat}/${lon}`; 
+
+    fetch(backendUrl, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            statusElement.className = 'stat-trend negative';
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.ok) {
+            valueElement.textContent = data.calidad; 
+            
+            statusElement.className = 'stat-trend';
+            let colorClass = '';
+            if (data.calidad === 'Alta') {
+                colorClass = 'positive';
+            } else if (data.calidad === 'Baja') {
+                colorClass = 'negative'; 
+            }
+            statusElement.classList.add(colorClass);
+
+            statusElement.textContent = `${data.valorOCD_g_kg} ${data.unidad}`;
+        } else {
+            valueElement.textContent = 'Error';
+            statusElement.textContent = data.mensaje || 'No se pudo obtener la calidad.';
+            statusElement.className = 'stat-trend negative';
+        }
+    })
+    .catch(error => {
+        console.error('Fallo en la solicitud de Calidad del Suelo:', error);
+        valueElement.textContent = 'Error';
+        statusElement.textContent = 'Error de conexión.';
+        statusElement.className = 'stat-trend negative';
+    });
+}
+
+
+/**
+ * NUEVA FUNCIÓN: Escucha la RTDB de Firebase para obtener las coordenadas del sensor.
+ * (Asume que ya tienes configurado Firebase y 'database' es global o se pasa aquí)
+ */
+/**
+/**
+ * Monitorea la RTDB de Firebase para obtener las coordenadas del sensor.
+ */
+function iniciarMonitoreoCalidadSuelo(token) {
+    const valueElement = document.getElementById('soil-quality-value');
+    const statusElement = document.getElementById('soil-quality-status');
+    
+    // Verificamos si la instancia de la base de datos y el token están disponibles
+    if (typeof db === 'undefined' || !token) {
+        valueElement.textContent = 'Error';
+        statusElement.textContent = 'RTDB no inicializado o sin token.';
+        statusElement.className = 'stat-trend negative';
+        return;
+    }
+
+    // 🚨 CLAVE CORREGIDA: Apuntamos directamente al nodo 'greenroots'
+    const sensorRef = db.ref('greenroots'); 
+
+    // Establecer estado inicial
+    valueElement.textContent = 'RTDB';
+    statusElement.textContent = 'Esperando datos de GPS del sensor...';
+    statusElement.className = 'stat-trend';
+
+    // Escucha de datos en tiempo real
+    sensorRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        
+        // Verificación: data debe existir y debe contener latitud y longitud
+        if (data && typeof data.latitud !== 'undefined' && typeof data.longitud !== 'undefined') {
+            
+            // Los datos de Firebase RTDB suelen ser números, usamos parseFloat por seguridad
+            const lat = parseFloat(data.latitud);
+            const lon = parseFloat(data.longitud);
+
+            if (!isNaN(lat) && !isNaN(lon)) {
+                // Llamar al backend con las coordenadas del sensor
+                obtenerCalidadSuelo(lat, lon, token);
+            } else {
+                valueElement.textContent = 'Error';
+                statusElement.textContent = 'Datos de GPS inválidos del sensor.';
+                statusElement.className = 'stat-trend negative';
+            }
+        } else {
+            // Error si el nodo 'greenroots' está vacío o faltan campos
+            valueElement.textContent = 'Error';
+            statusElement.textContent = 'Datos GPS no encontrados en /greenroots.';
+            statusElement.className = 'stat-trend negative';
+        }
+    }, (error) => {
+        console.error("Error al leer datos de Firebase RTDB:", error);
+        valueElement.textContent = 'Error';
+        statusElement.textContent = 'Fallo de conexión con RTDB.';
+        statusElement.className = 'stat-trend negative';
+    });
+}
+
+    /**
+     * Intenta obtener la geolocalización del usuario.
+     */
+    function iniciarBusquedaCalidadSuelo(token) {
+        const statusElement = document.getElementById('soil-quality-status');
+        const valueElement = document.getElementById('soil-quality-value');
+
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    // Llamar al backend con las coordenadas
+                    obtenerCalidadSuelo(lat, lon, token);
+                },
+                (error) => {
+                    console.error("Error al obtener la ubicación GPS:", error);
+                    valueElement.textContent = 'GPS';
+                    
+                    let msg = 'Permiso denegado/no disponible.';
+                    if(error.code === error.PERMISSION_DENIED) {
+                        msg = 'Permiso de ubicación denegado.';
+                    } else if (error.code === error.POSITION_UNAVAILABLE) {
+                        msg = 'Ubicación no disponible.';
+                    } else if (error.code === error.TIMEOUT) {
+                         msg = 'Tiempo de espera agotado.';
+                    }
+                    
+                    statusElement.textContent = msg;
+                    statusElement.className = 'stat-trend negative';
+                },
+                {
+                    enableHighAccuracy: false, 
+                    timeout: 10000, 
+                    maximumAge: 0
+                }
+            );
+        } else {
+            valueElement.textContent = 'N/A';
+            statusElement.textContent = 'GPS no soportado.';
+            statusElement.className = 'stat-trend negative';
+        }
+    }
+
         // Obtener GPS
         document.getElementById('btnGetGps')?.addEventListener('click', () => {
             const gpsInput = document.getElementById('ubicacionGps');
@@ -1132,11 +1299,46 @@ function displayArboles(arboles) {
         }
 
         // Cargar Estadísticas (Dummy data)
-        function cargarEstadisticas() {
-            const arboles = 125; 
-            document.getElementById('arbolesPlantados').textContent = arboles;
-            document.getElementById('arbolesMes').textContent = `+${Math.floor(arboles * 0.1)} este mes`;
+        // dashboard.html (Dentro del bloque <script>)
+
+// ... después de getCurrentUserUid() y antes de cargarArboles()
+
+/**
+ * Carga las estadísticas principales del usuario, incluyendo el conteo de árboles.
+ */
+async function cargarEstadisticas() {
+    const userId = getCurrentUserUid();
+    const arbolesPlantadosElement = document.getElementById('arbolesPlantados'); // El span que vamos a actualizar
+
+    if (!userId) {
+        arbolesPlantadosElement.textContent = '---';
+        console.error("Error: ID de usuario no disponible para cargar estadísticas.");
+        return;
+    }
+
+    try {
+        const headers = getAuthHeaders(); // Función existente para obtener el token
+        // Usar el nuevo endpoint
+        const response = await fetch(`${API_URL}/voluntario/arboles/count`, { headers: headers });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+            console.error("Error al obtener estadísticas:", data.mensaje);
+            arbolesPlantadosElement.textContent = 'Error';
+            return;
         }
+
+        const totalArboles = data.totalArboles || 0;
+        
+        // Actualizar el contador de árboles plantados con el número real
+        arbolesPlantadosElement.textContent = totalArboles;
+
+    } catch (error) {
+        console.error("Error de red al cargar estadísticas:", error);
+        arbolesPlantadosElement.textContent = 'Fail';
+    }
+}
+// ... resto de tu código
 
 
         // ===============================================
@@ -1156,7 +1358,7 @@ function displayArboles(arboles) {
                 const arbolesSection = document.getElementById('arbolesRegistradosSection');
                 const arbolesStatCard = document.getElementById('arbolesStatCard');
                 const arbolesToggleArrow = document.getElementById('arbolesToggleArrow'); // 🚨 NUEVO: Referencia a la flecha
-
+                const token = userData ? userData.token : null;
                 // 🚨 ACCIÓN 1: Ocultar la sección de árboles por defecto
                 arbolesSection.classList.add('hidden-section'); 
                 // La flecha empieza no rotada (apuntando a la derecha)
@@ -1175,6 +1377,8 @@ function displayArboles(arboles) {
                     }
                 });
                 // --- FIN LÓGICA TOGGLE ---
+                document.getElementById('arbolesRegistradosSection').classList.add('hidden-section');
+
 
                 // 1. Inicializa el mapa ANTES de cualquier cosa (para asegurar que el contenedor esté listo)
                 initializeMap();
@@ -1183,12 +1387,19 @@ function displayArboles(arboles) {
                 initializeFirebase().then((success) => {
                     if (success) {
                         loadSensorData(); 
-                    }
+                        iniciarMonitoreoCalidadSuelo(token);
+                    }else {
+        // Manejar el caso de que Firebase falle al inicializar
+        document.getElementById('soil-quality-value').textContent = 'Error';
+        document.getElementById('soil-quality-status').textContent = 'Fallo de Firebase.';
+        document.getElementById('soil-quality-status').classList.add('negative');
+    }
                 });
     
                 // 3. Cargar datos de la API (no dependientes de Firebase)
                 cargarEventos();
                 cargarEstadisticas();
+
 
                 // 4. Gráfico (Chart.js)
                 const ctx = document.getElementById('impactChart').getContext('2d');
@@ -1233,6 +1444,7 @@ function displayArboles(arboles) {
 
         // Hacer la función logout accesible globalmente
         window.logout = logout; 
+
 
     </script>
 </body>
