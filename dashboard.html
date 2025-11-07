@@ -554,10 +554,10 @@
         
         let firebaseApp; 
         let db; 
-        let database;
-        let token;
+
         let map; // Variable global para la instancia del mapa
         let currentMarker = null; // Variable para el marcador del sensor
+        let impactChartInstance = null;
 
         const modal = document.getElementById("registroModal");
         const btnOpenModal = document.getElementById("openRegistroModalBtn");
@@ -824,6 +824,81 @@ function getAuthHeaders() {
     return null;
 }
 
+
+async function cargarImpactoAmbiental() {
+    const chartContainer = document.getElementById('impactChart');
+    const chartPanel = chartContainer.closest('.dashboard-panel');
+    const token = userData?.token;
+    
+    if (!token) {
+        if (chartPanel) chartPanel.querySelector('.chart-container').innerHTML = '<p style="color: var(--danger-red); text-align: center; padding: 1rem;">Error: No autenticado.</p>';
+        return;
+    }
+
+    try {
+        // Obtenemos los headers de autenticación (la función getAuthHeaders ya existe)
+        const headers = getAuthHeaders(); 
+        const response = await fetch(`${API_URL}/arboles/mi-impacto`, {
+            method: 'GET',
+            headers: headers,
+        });
+        
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+            throw new Error(data.mensaje || 'Error al obtener los datos del impacto.');
+        }
+
+        // 1. Actualizar la tarjeta de estadísticas con el total de árboles
+        document.getElementById('arbolesPlantados').textContent = data.totalArboles || 0;
+        
+        const chartData = data; 
+        
+        // 2. Destruir la instancia anterior si existe
+        if (impactChartInstance) {
+            impactChartInstance.destroy();
+        }
+
+        // 3. Crear la gráfica con los datos reales del backend
+        impactChartInstance = new Chart(chartContainer.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: chartData.labels, // Etiquetas de los meses reales (Ene/25, Feb/25...)
+                datasets: [{
+                    label: 'Árboles Plantados (Aprobados)',
+                    data: chartData.data, // Conteo real de árboles
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    tension: 0.4, 
+                    fill: true 
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Cantidad de Árboles'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error("Error al cargar la gráfica de impacto:", error);
+        if (chartPanel) chartPanel.querySelector('.chart-container').innerHTML = '<p style="color: var(--danger-red); text-align: center; padding: 1rem;">❌ Error al cargar la gráfica de impacto.</p>';
+    }
+}
+
 // Función principal para cargar los árboles del usuario
 // dashboard.html (dentro del bloque <script>)
 
@@ -1027,14 +1102,25 @@ function displayArboles(arboles) {
         if (data.ok) {
             valueElement.textContent = data.calidad; 
             
-            statusElement.className = 'stat-trend';
+            // 1. Resetear la clase base
+            statusElement.className = 'stat-trend'; 
             let colorClass = '';
-            if (data.calidad === 'Alta') {
+            
+            // 🚨 CORRECCIÓN CLAVE: Asignar clases de color basadas en los nuevos valores de Open-Meteo
+            // (Asumimos que 'Buena' es positivo y 'Seco/Bajo' o 'Saturado/Riesgo' es negativo)
+            if (data.calidad.includes('Buena')) {
                 colorClass = 'positive';
-            } else if (data.calidad === 'Baja') {
+            } else if (data.calidad.includes('Seco/Bajo') || data.calidad.includes('Saturado/Riesgo')) {
                 colorClass = 'negative'; 
+            } else if (data.calidad.includes('Simulada')) {
+                colorClass = 'warning'; // Clase opcional para resultados simulados
             }
-            statusElement.classList.add(colorClass);
+            // NOTA: Si data.calidad es "Media (Simulada)", .includes('Simulada') funciona.
+            
+            // 2. Aplicar la clase (solo si no es vacía)
+            if (colorClass) {
+                statusElement.classList.add(colorClass); // 💡 Aquí es donde ocurría el error si colorClass estaba vacío
+            }
 
             statusElement.textContent = `${data.valorOCD_g_kg} ${data.unidad}`;
         } else {
@@ -1400,8 +1486,8 @@ async function cargarEstadisticas() {
                 cargarEventos();
                 cargarEstadisticas();
 
-
-                // 4. Gráfico (Chart.js)
+                cargarImpactoAmbiental();
+                /** 4. Gráfico (Chart.js)
                 const ctx = document.getElementById('impactChart').getContext('2d');
                 new Chart(ctx, {
                     type: 'line',
@@ -1419,7 +1505,7 @@ async function cargarEstadisticas() {
                         responsive: true,
                         maintainAspectRatio: false
                     }
-                });
+                });**/
                 
                 // 5. Lógica de Menú Móvil
                 const hamburger = document.querySelector('.hamburger');
