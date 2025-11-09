@@ -825,6 +825,90 @@
     color: var(--text-dark);
 }
 
+
+#eventosContainer {
+    /* Altura máxima que puede ocupar la lista */
+    max-height: 400px; /* Ajusta este valor (ej. 400px) según el tamaño deseado de la tarjeta */
+    
+    /* Hace que aparezca la barra de desplazamiento vertical cuando el contenido exceda la altura máxima */
+    overflow-y: auto; 
+    
+    /* Opcional: añade un poco de espacio interno si el scroll está justo pegado al borde */
+    padding-right: 15px;
+    
+    /* Opcional: hace que la barra de desplazamiento sea visible solo al pasar el ratón (más limpio) */
+    /* overflow-y: scroll; /* Usa 'scroll' si quieres que la barra siempre esté visible, aunque esté vacía */
+}
+
+/* Opcional: Estilo para la barra de desplazamiento (solo funciona en navegadores basados en WebKit como Chrome/Safari) */
+#eventosContainer::-webkit-scrollbar {
+    width: 6px;
+}
+
+#eventosContainer::-webkit-scrollbar-thumb {
+    background-color: var(--primary-green); /* Usa el color principal de tu tema */
+    border-radius: 10px;
+}
+
+.ranking-card {
+    /* Estilos generales de la tarjeta, si son diferentes a otros cards */
+}
+
+#rankingListContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 5px;
+}
+
+.ranking-item {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    padding: 10px 15px;
+    border-radius: 8px;
+    background-color: var(--bg-light); /* Fondo suave */
+    transition: background-color 0.2s;
+}
+
+.ranking-item:nth-child(even) {
+    background-color: var(--bg-extra-light);
+}
+
+.rank-position {
+    font-weight: 700;
+    font-size: 1.1em;
+    color: var(--primary-green);
+    text-align: center;
+}
+
+.rank-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 10px;
+}
+
+.rank-count {
+    font-weight: 600;
+    color: var(--text-dark);
+    text-align: right;
+}
+
+/* 🚨 Resaltar la posición del usuario actual 🚨 */
+.ranking-item-user {
+    background-color: var(--primary-green-light) !important;
+    border: 2px solid var(--primary-green);
+    color: var(--text-dark);
+    font-weight: 600;
+}
+
+.ranking-item-user .rank-position {
+    color: var(--primary-green-dark);
+}
+
+
 /* Responsive Design */
 @media (max-width: 1200px) {
     .chart-panel {
@@ -887,3 +971,4 @@
         align-items: flex-start;
     }
 }
+
