@@ -396,14 +396,22 @@
                         <span class="stat-trend neutral">Eventos próximos</span>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon rank"> <i class="fas fa-trophy"></i> </div>
-                    <div class="stat-content">
-                        <h3>Ranking</h3>
-                        <span class="stat-number">#47</span>
-                        <span class="stat-trend positive">↑12 posiciones</span>
-                    </div>
-                </div>
+                <div class="stat-card ranking-card-wrapper"> 
+    <div class="card ranking-card">
+        <div class="card-header">
+            <h3>🏆 Ranking de Voluntarios</h3>
+        </div>
+        <div class="card-body">
+            <div id="myRankPosition" class="my-rank-summary">
+                <p>Calculando tu posición...</p>
+            </div>
+            
+            <div id="rankingListContainer" class="ranking-list">
+                <p>Cargando lista de voluntarios...</p>
+            </div>
+        </div>
+    </div>
+</div>
             </div>
 
             <section class="dashboard-panel" id="arbolesRegistradosSection">
@@ -899,6 +907,147 @@ async function cargarImpactoAmbiental() {
     }
 }
 
+/**
+ * Llama al API para unir al voluntario al evento.
+ * @param {string} eventoId - El ID del documento del evento en Firestore.
+ * @param {HTMLButtonElement} buttonElement - El botón de "Unirse" que se presionó.
+ */
+async function unirseAEvento(eventoId, buttonElement) {
+    const token = userData?.token;
+    
+    if (!token) {
+        alert('Error de autenticación. Por favor, inicia sesión de nuevo.');
+        return;
+    }
+
+    buttonElement.disabled = true;
+    const originalText = buttonElement.textContent;
+    buttonElement.textContent = 'Uniéndose...';
+    
+    try {
+        const headers = getAuthHeaders(); 
+        const response = await fetch(`${API_URL}/eventos/unirse/${eventoId}`, {
+            method: 'PATCH',
+            headers: headers,
+        });
+        
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+            throw new Error(data.mensaje || 'No se pudo unir al evento.');
+        }
+
+        // Éxito: actualizar el botón
+        buttonElement.textContent = '¡Unido!';
+        buttonElement.classList.add('btn-unido'); // Añadir clase para estilo
+        // Opcional: Recargar la lista de eventos para actualizar el contador de participantes
+        cargarEventos(); 
+
+    } catch (error) {
+        console.error("Error al unirse al evento:", error);
+        alert(`Error al unirse: ${error.message}`);
+        
+        // Revertir el estado del botón en caso de error
+        buttonElement.textContent = originalText;
+        buttonElement.disabled = false;
+        buttonElement.classList.remove('btn-unido');
+    }
+}
+
+async function cargarRanking() {
+    const rankingContainer = document.getElementById('rankingListContainer'); // Asegúrate de que este ID exista en tu HTML
+    if (!rankingContainer) return;
+    
+    rankingContainer.innerHTML = '<p style="padding: 1rem;"><i class="fas fa-spinner fa-spin"></i> Calculando ranking...</p>';
+    
+    const token = userData?.token;
+    const currentUserId = userData?.id; // Usamos 'id' ya que vimos que es la propiedad correcta para el UID
+    
+    if (!token || !currentUserId) {
+        rankingContainer.innerHTML = '<p style="color: var(--text-light); padding: 1rem;">Inicia sesión para ver el ranking.</p>';
+        return;
+    }
+
+    try {
+        const headers = getAuthHeaders(); 
+        const response = await fetch(`${API_URL}/ranking/eventos`, {
+            method: 'GET',
+            headers: headers,
+        });
+        
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+            throw new Error(data.mensaje || 'No se pudo obtener el ranking.');
+        }
+
+        const ranking = data.ranking || [];
+
+        if (ranking.length === 0) {
+            rankingContainer.innerHTML = '<p style="color: var(--text-light); padding: 1rem;">Aún no hay participantes en eventos.</p>';
+            return;
+        }
+
+        let rankingHTML = '';
+        let userPosition = -1;
+
+        ranking.forEach((item, index) => {
+            const position = index + 1;
+            const isCurrentUser = item.uid === currentUserId;
+            
+            if (isCurrentUser) {
+                userPosition = position;
+            }
+
+            // Clases CSS para resaltar la fila y el usuario actual
+            const itemClass = `ranking-item ${isCurrentUser ? 'ranking-item-user' : ''} rank-${position}`;
+            
+            rankingHTML += `
+                <div class="${itemClass}">
+                    <span class="rank-position">${position}°</span>
+                    <span class="rank-name">${item.nombre}</span>
+                    <span class="rank-count">${item.count} eventos</span>
+                </div>
+            `;
+        });
+        
+        // Mostrar el ranking en el contenedor principal
+        rankingContainer.innerHTML = rankingHTML;
+        
+        // Mostrar la posición del usuario en una sección dedicada (si existe)
+        const myPositionElement = document.getElementById('myRankPosition');
+        if (myPositionElement) {
+             const myRankItem = ranking.find(r => r.uid === currentUserId);
+             if (userPosition !== -1) {
+                myPositionElement.innerHTML = `Tu posición actual: <strong>${userPosition}°</strong> (${myRankItem.count} eventos)`;
+             } else {
+                 myPositionElement.innerHTML = 'Aún no participas en ningún evento.';
+             }
+        }
+
+    } catch (error) {
+        console.error("Error al cargar el ranking:", error);
+        rankingContainer.innerHTML = `<p style="color: var(--danger-red); padding: 1rem;">Error al cargar el ranking: ${error.message}</p>`;
+    }
+}
+
+// dashboard.html (dentro del bloque <script>)
+
+// ... después de la función unirseAEvento(...)
+
+/**
+ * Función auxiliar para delegar la escucha de eventos click en el contenedor de eventos.
+ * Solo ejecuta unirseAEvento si se pulsa un botón .join-btn no deshabilitado.
+ */
+function handleEventButtonClick(e) {
+    // Usamos closest para encontrar el botón si el click fue dentro de él
+    const button = e.target.closest('.join-btn:not([disabled])');
+    if (button) {
+        const eventoId = button.getAttribute('data-event-id');
+        // Ejecutamos la función de la API
+        unirseAEvento(eventoId, button);
+    }
+}
 // Función principal para cargar los árboles del usuario
 // dashboard.html (dentro del bloque <script>)
 
@@ -1332,57 +1481,102 @@ function iniciarMonitoreoCalidadSuelo(token) {
         });
 
         // Cargar Eventos
-        async function cargarEventos() {
-            const eventosContainer = document.getElementById('eventosContainer');
-            eventosContainer.innerHTML = '<p style="padding: 1.5rem;"><i class="fas fa-spinner fa-spin"></i> Cargando eventos...</p>';
+        // dashboard.html (dentro del bloque <script>)
 
-            try {
-                const response = await fetch(`${API_URL}/eventos/activos`);
-                const data = await response.json();
+/**
+ * Carga los próximos eventos, verifica la participación del usuario y habilita el botón de unirse.
+ */
+async function cargarEventos() {
+    const eventosContainer = document.getElementById('eventosContainer');
+    eventosContainer.innerHTML = '<p style="padding: 1.5rem;"><i class="fas fa-spinner fa-spin"></i> Cargando eventos...</p>';
+    
+    // 1. Obtener datos de usuario y token
+    const token = userData?.token; 
+    const voluntarioId = userData?.id; // ID del usuario autenticado (necesario para verificar si está unido)
+    
+    if (!userData || !token || !voluntarioId) {
+        eventosContainer.innerHTML = '<p style="color: var(--danger-red); padding: 1.5rem;"><i class="fas fa-user-lock"></i> No autenticado. Inicia sesión para ver las actividades.</p>';
+        return;
+    }
 
-                if (!response.ok) {
-                    eventosContainer.innerHTML = '<p style="color: var(--danger-red); padding: 1.5rem;"><i class="fas fa-exclamation-circle"></i> Error al cargar eventos.</p>';
-                    return;
-                }
-                
-                const eventos = data.eventos || [];
-                
-                document.getElementById('numEventos').textContent = eventos.length;
+    try {
+        // 2. Realizar la solicitud incluyendo el token de autorización
+        const headers = getAuthHeaders(); // Función que añade el token al header
+        // Usamos la ruta genérica /api/eventos (asumiendo que devuelve activos o la ajustas en tu backend)
+        // Si la ruta /eventos/activos no requiere auth, quita 'headers' del fetch
+        const response = await fetch(`${API_URL}/eventos/activos`, {
+            method: 'GET',
+            headers: headers, // Añadimos el header de autenticación
+        });
+        
+        const data = await response.json();
 
-                if (eventos.length === 0) {
-                    eventosContainer.innerHTML = '<p style="color: var(--text-light); padding: 1.5rem;"><i class="fas fa-info-circle"></i> No hay eventos programados por ahora.</p>';
-                    return;
-                }
-                
-                eventosContainer.innerHTML = '';
-                
-                eventos.slice(0, 3).forEach(evento => { 
-                    const fecha = new Date(evento.fecha);
-                    const dia = fecha.getDate().toString().padStart(2, '0');
-                    const mes = fecha.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase().replace('.', '');
-                    
-                    const eventoItem = document.createElement('div');
-                    eventoItem.className = 'activity-item';
-                    eventoItem.innerHTML = `
-                        <div class="activity-date">
-                            <span class="day">${dia}</span>
-                            <span class="month">${mes}</span>
-                        </div>
-                        <div class="activity-info">
-                            <h4>${evento.titulo}</h4>
-                            <p><i class="fas fa-map-marker-alt"></i> ${evento.ubicacion || 'Ubicación pendiente'}</p>
-                            <p><i class="fas fa-clock"></i> ${evento.hora || 'Hora pendiente'}</p>
-                        </div>
-                        <button class="join-btn">Unirse</button>
-                    `;
-                    eventosContainer.appendChild(eventoItem);
-                });
-
-            } catch (error) {
-                console.error("Error al obtener eventos:", error);
-                eventosContainer.innerHTML = '<p style="color: var(--danger-red); padding: 1.5rem;"><i class="fas fa-exclamation-circle"></i> Error de conexión con el servidor.</p>';
-            }
+        if (!response.ok) {
+            eventosContainer.innerHTML = `<p style="color: var(--danger-red); padding: 1.5rem;"><i class="fas fa-exclamation-circle"></i> Error ${response.status}: ${data.mensaje || 'Error al cargar eventos.'}</p>`;
+            return;
         }
+        
+        const eventos = data.eventos || [];
+        
+        // 3. Actualizar contador en la tarjeta
+        document.getElementById('numEventos').textContent = eventos.length;
+
+        if (eventos.length === 0) {
+            eventosContainer.innerHTML = '<p style="color: var(--text-light); padding: 1.5rem;"><i class="fas fa-info-circle"></i> No hay eventos programados por ahora.</p>';
+            return;
+        }
+        
+        eventosContainer.innerHTML = '';
+        
+        // 4. Renderizar eventos y manejar el estado de participación
+        eventos.slice(0, 5).forEach(evento => { 
+    const fechaObj = new Date(evento.fecha);
+    const esFechaValida = !isNaN(fechaObj.getTime());
+    
+    let dia, mes;
+
+    if (esFechaValida) {
+        dia = fechaObj.getDate().toString().padStart(2, '0');
+        mes = fechaObj.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase().replace('.', '');
+    } else {
+        dia = '??';
+        mes = 'FECHA';
+    }
+    
+    const eventoItem = document.createElement('div');
+    eventoItem.className = 'activity-item';
+    eventoItem.innerHTML = `
+        <div class="activity-date">
+            <span class="day">${dia}</span>
+            <span class="month">${mes}</span>
+        </div>
+        <div class="activity-info">
+            <h4>${evento.titulo}</h4>
+            <p><i class="fas fa-map-marker-alt"></i> ${evento.ubicacion || 'Ubicación pendiente'}</p>
+            <p><i class="fas fa-clock"></i> ${evento.hora || 'Hora pendiente'}</p>
+            <p><i class="fas fa-users"></i> ${evento.participantes.length} participantes</p>
+        </div>
+        <button 
+            class="join-btn ${voluntarioId && (evento.participantes.includes(voluntarioId) ? 'btn-unido' : '')}" 
+            data-event-id="${evento.id}"
+            ${voluntarioId && (evento.participantes.includes(voluntarioId) ? 'disabled' : '')}
+        >
+            ${voluntarioId && (evento.participantes.includes(voluntarioId) ? '¡Unido!' : 'Unirse')}
+        </button>
+    `;
+    eventosContainer.appendChild(eventoItem);
+});
+
+        // 5. Adjuntar el manejador de eventos a los botones (Delegación)
+        // Quitamos el listener anterior antes de añadir uno nuevo para evitar duplicados
+        eventosContainer.removeEventListener('click', handleEventButtonClick);
+        eventosContainer.addEventListener('click', handleEventButtonClick);
+
+    } catch (error) {
+        console.error("Error al obtener eventos:", error);
+        eventosContainer.innerHTML = '<p style="color: var(--danger-red); padding: 1.5rem;"><i class="fas fa-exclamation-circle"></i> Error de conexión con el servidor.</p>';
+    }
+}
 
         // Cargar Estadísticas (Dummy data)
         // dashboard.html (Dentro del bloque <script>)
@@ -1485,7 +1679,7 @@ async function cargarEstadisticas() {
                 // 3. Cargar datos de la API (no dependientes de Firebase)
                 cargarEventos();
                 cargarEstadisticas();
-
+                cargarRanking();
                 cargarImpactoAmbiental();
                 /** 4. Gráfico (Chart.js)
                 const ctx = document.getElementById('impactChart').getContext('2d');
