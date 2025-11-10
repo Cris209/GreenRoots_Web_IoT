@@ -626,6 +626,24 @@
 .chart-controls {
     display: flex;
     gap: 0.5rem;
+    height: 30px;
+    align-items: center;
+}
+
+.chart-btn-register-tree{
+    background: #e8f5f3;
+    color: var(--text-dark);
+    border: 1px solid #e8f5f3;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.8rem;
+}
+
+.chart-btn-register-tree:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--shadow);
 }
 
 .chart-btn {
@@ -906,6 +924,43 @@
 
 .ranking-item-user .rank-position {
     color: var(--primary-green-dark);
+}
+
+/*Diseño de boton de registrar un arbol
+
+/* dashboard.css */
+
+/* Estilo para el contenedor único del botón, si tu cuadrícula principal lo requiere */
+.quick-action-single {
+    /* Asume que ocupa el espacio de un panel en la cuadrícula principal */
+    /* Ajusta el ancho/alto según el diseño de tu cuadrícula (ej. grid-column: span 1;) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Estilo para hacer el botón más grande y prominente */
+.large-action-card {
+    /* Hereda estilos de .action-card */
+    width: 100%;
+    height: 100%; /* Ocupa toda la altura disponible en su contenedor */
+    min-height: 150px; /* Asegura una altura mínima */
+    
+    background-color: var(--primary-green); /* Color de fondo destacado */
+    color: white; /* Texto blanco para contraste */
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.large-action-card:hover {
+    background-color: var(--primary-green-dark); /* Color más oscuro al pasar el ratón */
+}
+
+.large-action-card i {
+    /* Aumenta el tamaño del icono del árbol */
+    font-size: 3em !important; 
+    margin-bottom: 10px;
 }
 
 
