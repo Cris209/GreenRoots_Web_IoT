@@ -1222,24 +1222,53 @@ function displayArboles(arboles) {
     /**
      * Llama al endpoint del backend para obtener la calidad del suelo por coordenadas.
      */
-    function obtenerCalidadSuelo(lat, lon, token) {
+    function obtenerCalidadSuelo(lat, lon, tokenArgumento) {
     const valueElement = document.getElementById('soil-quality-value');
     const statusElement = document.getElementById('soil-quality-status');
 
     valueElement.textContent = 'Buscando...';
     statusElement.textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
 
-    // ⚠️ IMPORTANTE: REEMPLAZA esta URL con la base de tu backend en Render
+    // 1. Obtener el token: Prioriza el argumento, si no, lo busca en localStorage
+    let token = tokenArgumento; 
+    if (!token) {
+        try {
+            const userDataJSON = localStorage.getItem('usuario');
+            if (userDataJSON) {
+                const userData = JSON.parse(userDataJSON);
+                token = userData.token; // Asumiendo que guardas el token en 'usuario.token'
+            }
+        } catch (e) {
+            console.error('Error al recuperar token de localStorage:', e);
+        }
+    }
+    
+    // VERIFICACIÓN CLAVE: Si no hay token, abortar la llamada
+    if (!token) {
+        console.error('ERROR: No se encontró el token de autenticación.');
+        valueElement.textContent = 'Error';
+        statusElement.textContent = 'Requiere iniciar sesión (Token no encontrado).';
+        statusElement.className = 'stat-trend negative';
+        return; // Detiene la ejecución
+    }
+
     const backendUrl = `https://greenroots-web.onrender.com/api/soil-quality/${lat}/${lon}`; 
 
     fetch(backendUrl, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
+            // 2. Usar el token recuperado o pasado
             'Authorization': `Bearer ${token}` 
         }
     })
     .then(response => {
+        // 3. Manejar explícitamente 401/403 para un mensaje más claro
+        if (response.status === 401 || response.status === 403) {
+            // El backend envió "Acceso denegado. Se requiere token."
+            throw new Error(`Acceso denegado. Código: ${response.status}. Revisa el token.`); 
+        }
+        
         if (!response.ok) {
             statusElement.className = 'stat-trend negative';
             throw new Error(`Error HTTP: ${response.status}`);
@@ -1255,32 +1284,32 @@ function displayArboles(arboles) {
             let colorClass = '';
             
             // 🚨 CORRECCIÓN CLAVE: Asignar clases de color basadas en los nuevos valores de Open-Meteo
-            // (Asumimos que 'Buena' es positivo y 'Seco/Bajo' o 'Saturado/Riesgo' es negativo)
             if (data.calidad.includes('Buena')) {
                 colorClass = 'positive';
             } else if (data.calidad.includes('Seco/Bajo') || data.calidad.includes('Saturado/Riesgo')) {
                 colorClass = 'negative'; 
             } else if (data.calidad.includes('Simulada')) {
-                colorClass = 'warning'; // Clase opcional para resultados simulados
+                colorClass = 'warning'; 
             }
-            // NOTA: Si data.calidad es "Media (Simulada)", .includes('Simulada') funciona.
             
             // 2. Aplicar la clase (solo si no es vacía)
             if (colorClass) {
-                statusElement.classList.add(colorClass); // 💡 Aquí es donde ocurría el error si colorClass estaba vacío
+                statusElement.classList.add(colorClass); 
             }
 
             statusElement.textContent = `${data.valorOCD_g_kg} ${data.unidad}`;
         } else {
             valueElement.textContent = 'Error';
-            statusElement.textContent = data.mensaje || 'No se pudo obtener la calidad.';
+            // Mostrar mensaje de backend, ej: "Acceso denegado..."
+            statusElement.textContent = data.mensaje || 'No se pudo obtener la calidad.'; 
             statusElement.className = 'stat-trend negative';
         }
     })
     .catch(error => {
         console.error('Fallo en la solicitud de Calidad del Suelo:', error);
         valueElement.textContent = 'Error';
-        statusElement.textContent = 'Error de conexión.';
+        // Mostrar mensaje de error más específico al usuario
+        statusElement.textContent = error.message.includes('Acceso denegado') ? 'Error de autenticación.' : 'Error de conexión.';
         statusElement.className = 'stat-trend negative';
     });
 }
