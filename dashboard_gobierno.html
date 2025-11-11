@@ -141,6 +141,26 @@
     border: 1px solid var(--danger-red);
 }
 
+.btn-primary {
+    /* Manteniendo tu verde principal */
+    background-color: var(--primary-green); 
+    color: var(--white);
+    border: none;
+    padding: 5px;
+    border-radius: 8px; /* Bordes suaves */
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 4px 12px rgba(56, 102, 65, 0.3); /* Sombra inicial con color del proyecto */
+}
+
+.btn-primary:hover {
+    background-color: #2b4c33; /* Un tono más oscuro de tu verde principal */
+    /* Efecto de elevación */
+    transform: translateY(-2px); 
+    box-shadow: 0 6px 18px rgba(56, 102, 65, 0.4); 
+}
+
 
         /* Responsive Design */
         @media (max-width: 600px) {
@@ -164,6 +184,9 @@
                     <li><a href="/dashboard.html" class="nav-link active">Dashboard</a></li>
                     <li id="gobiernoLink" style="display: none;"><a href="/gobierno.html" class="nav-link">Panel de Gobierno</a></li> 
                     <li><a href="/index.html" class="nav-link">Inicio</a></li>
+                    <button id="exportReportBtn" class="btn btn-primary">
+                    <i class="fas fa-file-excel"></i> Exportar Reporte CSV
+                    </button>
                 </ul>
                 <div class="user-menu">
                     <div class="user-info">
@@ -192,9 +215,7 @@
             </div>
             
             <div class="dashboard-grid">
-                <button id="exportReportBtn" class="btn btn-primary">
-    <i class="fas fa-file-excel"></i> Exportar Reporte CSV
-</button>
+                
                 <div class="dashboard-panel sensor-panel"> 
                     <div class="panel-header">
                         <h3><i class="fas fa-microchip"></i> Monitoreo del Sensor</h3>
