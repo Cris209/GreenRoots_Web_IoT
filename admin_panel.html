@@ -126,8 +126,29 @@
 
             <section class="card event-management-card" style="margin-top: 40px; padding: 30px; display: none;" id="eventoManagementSection">
                 <h3 style="margin-bottom: 20px;"><i class="fas fa-calendar"></i> Gestión de Eventos</h3>
-                <div id="eventoList" style="margin-bottom: 20px;">
-                    </div>
+                  <!-- Contenedor de Eventos -->
+        <div id="eventosContainer" class="min-h-[200px]">
+            <p style="padding: 1.5rem;"><i class="fas fa-spinner fa-spin"></i> Cargando eventos...</p>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación (Reemplazo de confirm() y alert()) -->
+    <div id="confirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 25px; border-radius: 8px; max-width: 400px; width: 90%; text-align: center;">
+        <h4 style="margin-bottom: 20px; color: var(--text-dark);">Confirmar Acción</h4>
+        
+        <p id="modalMessage" style="margin-bottom: 25px; line-height: 1.5;"></p>
+        
+        <div style="display: flex; gap: 15px; justify-content: center;">
+            <button id="modalConfirm" class="submit-btn" style="background: var(--danger-red); flex: 1; padding: 10px;">
+                Confirmar
+            </button>
+            <button id="modalCancel" class="submit-btn" style="background: var(--text-light); flex: 1; padding: 10px;">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
             </section>
 
             <div id="createEventoModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
@@ -172,6 +193,51 @@
                     </form>
                 </div>
             </div>
+
+            <div id="editEventoModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+        <h3 style="margin-bottom: 20px;"><i class="fas fa-edit"></i> Editar Evento</h3>
+        <form id="editEventoForm">
+            <input type="hidden" id="eventoIdEdit">
+            
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label>Nombre del Evento *</label>
+                <input type="text" id="eventoTituloEdit" required placeholder="Ej: Jornada de Reforestación Zona Norte">
+            </div>
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label>Descripción *</label>
+                <textarea id="eventoDescripcionEdit" required rows="3" placeholder="Describe el evento..."></textarea>
+            </div>
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label>Fecha del Evento</label>
+                <input type="date" id="eventoFechaEdit" required>
+            </div>
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label>Hora del Evento</label>
+                <input type="time" id="eventoHoraEdit">
+            </div>
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label>Ubicación</label>
+                <input type="text" id="eventoUbicacionEdit" placeholder="Ej: Parque Central">
+            </div>
+            <div class="input-group" style="margin-bottom: 15px;">
+                <label>Estado</label>
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="eventoActivoEdit" style="width: auto;">
+                    <span>Evento Activo</span>
+                </label>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="submit" class="submit-btn" style="background: var(--warning-orange); flex: 1;">
+                    <i class="fas fa-sync-alt"></i> Guardar Cambios
+                </button>
+                <button type="button" class="submit-btn" id="closeEditModal" style="background: var(--danger-red); flex: 1;">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
             <section class="card impact-charts" style="margin-top: 40px; padding: 30px;">
                 <h4 class="activity-title"><i class="fas fa-satellite-dish"></i> Monitoreo en Tiempo Real y Visualización de Impacto</h4>
@@ -223,226 +289,226 @@
     <script type="module">
     import { openDB, putItem, getAllItems, STORE_EVENTOS } from '/indexeddb-utils.js';
 
-    // La URL de tu Backend desplegado (Ajusta esto a tu URL real de Render)
-    const API_URL = "https://greenroots-web.onrender.com/api"; 
-    
-    // Obtener datos del usuario (el rol se almacena como 'Administrador')
-    const userData = localStorage.getItem("usuario") ? JSON.parse(localStorage.getItem("usuario")) : {};
-    
-    const listaRegistros = document.getElementById('registrosPendientes');
-    const contadorElemento = document.getElementById('validationCount');
-    const noPendingMessage = document.getElementById('noPending');
-    
-    // Elementos de Eventos y Usuarios
-    const eventoList = document.getElementById('eventoList');
-    const usersList = document.getElementById('usersList');
-    const userManagementSection = document.getElementById('userManagementSection');
-    const eventoManagementSection = document.getElementById('eventoManagementSection');
-    
-    // ==========================================================
-    // ✅ FUNCIÓN CENTRAL PARA OBTENER LOS HEADERS
-    // ==========================================================
-    function getAuthHeaders() {
-        const userToken = userData.token; 
-        
-        if (!userToken) {
-            console.error("Token de autenticación no encontrado.");
-            return {};
-        }
+// La URL de tu Backend desplegado (Ajusta esto a tu URL real de Render)
+const API_URL = "https://greenroots-web.onrender.com/api"; 
 
-        return {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${userToken}`, 
-            'X-User-Rol': userData.rol || 'Administrador' 
+// Obtener datos del usuario (el rol se almacena como 'Administrador')
+const userData = localStorage.getItem("usuario") ? JSON.parse(localStorage.getItem("usuario")) : {};
+
+const listaRegistros = document.getElementById('registrosPendientes');
+const contadorElemento = document.getElementById('validationCount');
+const noPendingMessage = document.getElementById('noPending');
+
+// Elementos de Eventos y Usuarios
+const eventoList = document.getElementById('eventoList');
+const usersList = document.getElementById('usersList');
+const userManagementSection = document.getElementById('userManagementSection');
+const eventoManagementSection = document.getElementById('eventoManagementSection');
+
+// ==========================================================
+// ✅ FUNCIÓN CENTRAL PARA OBTENER LOS HEADERS
+// ==========================================================
+function getAuthHeaders() {
+    const userToken = userData.token; 
+    
+    if (!userToken) {
+        console.error("Token de autenticación no encontrado.");
+        return {};
+    }
+
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userToken}`, 
+        'X-User-Rol': userData.rol || 'Administrador' 
+    };
+}
+
+// ===============================================
+// Variables Globales para Firebase/Mapa
+// ===============================================
+let firebaseApp; 
+let db; 
+let map; 
+let currentMarker = null; 
+const DEFAULT_LAT = 42.3936888;
+const DEFAULT_LON = -71.0412802;
+
+// ===============================================
+// 1. FUNCIONES DE FIREBASE Y LEAFLET
+// ===============================================
+
+function initializeMap() {
+    map = L.map('mapContainer').setView([DEFAULT_LAT, DEFAULT_LON], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    console.log("✅ Mapa Leaflet inicializado con éxito.");
+}
+
+async function initializeFirebase() {
+    const estadoElement = document.getElementById('estado-firebase');
+    if (!userData) {
+        estadoElement.textContent = "Usuario no autenticado.";
+        return false;
+    }
+
+    try {
+        estadoElement.textContent = "Obteniendo configuración...";
+        
+        const firebaseConfig = {
+            databaseURL: "https://greenroot-6dbfe-default-rtdb.firebaseio.com/"
         };
-    }
-
-    // ===============================================
-    // Variables Globales para Firebase/Mapa
-    // ===============================================
-    let firebaseApp; 
-    let db; 
-    let map; 
-    let currentMarker = null; 
-    const DEFAULT_LAT = 42.3936888;
-    const DEFAULT_LON = -71.0412802;
-    
-    // ===============================================
-    // 1. FUNCIONES DE FIREBASE Y LEAFLET
-    // ===============================================
-
-    function initializeMap() {
-        map = L.map('mapContainer').setView([DEFAULT_LAT, DEFAULT_LON], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-        console.log("✅ Mapa Leaflet inicializado con éxito.");
-    }
-
-    async function initializeFirebase() {
-        const estadoElement = document.getElementById('estado-firebase');
-        if (!userData) {
-            estadoElement.textContent = "Usuario no autenticado.";
-            return false;
-        }
-
-        try {
-            estadoElement.textContent = "Obteniendo configuración...";
-            
-            const firebaseConfig = {
-                databaseURL: "https://greenroot-6dbfe-default-rtdb.firebaseio.com/"
-            };
-            
-            firebaseApp = firebase.initializeApp(firebaseConfig);
-            db = firebase.database(); 
-            
-            estadoElement.textContent = "Conectado al RTDB.";
-            console.log("✅ Conexión de Firebase inicializada con éxito.");
-            
-            return true;
-            
-        } catch (error) { 
-            console.error("❌ Fallo al inicializar Firebase:", error);
-            estadoElement.textContent = `ERROR: ${error.message.split(":")[0] || "No se pudo conectar"}`;
-            return false;
-        }
-    }
-    
-    function loadSensorData() {
-        if (!db) {
-            console.warn("No se puede iniciar el monitoreo: Firebase DB no está inicializada.");
-            return;
-        }
-
-        const greenrootsRef = db.ref('greenroots'); 
-        const humElement = document.getElementById('humedad-sensor');
-        const latElement = document.getElementById('latitud-sensor');
-        const lonElement = document.getElementById('longitud-sensor');
-        const estadoElement = document.getElementById('estado-firebase');
-        const ultimaActElement = document.getElementById('ultima-actualizacion');
         
-        greenrootsRef.on('value', (snapshot) => {
-            const data = snapshot.val();
-            
-            if (data) {
-                const humedad = data.humedad !== undefined ? parseFloat(data.humedad).toFixed(1) : '--';
-                const latitud = data.latitud !== undefined ? parseFloat(data.latitud) : null;
-                const longitud = data.longitud !== undefined ? parseFloat(data.longitud) : null;
+        firebaseApp = firebase.initializeApp(firebaseConfig);
+        db = firebase.database(); 
+        
+        estadoElement.textContent = "Conectado al RTDB.";
+        console.log("✅ Conexión de Firebase inicializada con éxito.");
+        
+        return true;
+        
+    } catch (error) { 
+        console.error("❌ Fallo al inicializar Firebase:", error);
+        estadoElement.textContent = `ERROR: ${error.message.split(":")[0] || "No se pudo conectar"}`;
+        return false;
+    }
+}
 
-                humElement.textContent = humedad;
-                latElement.textContent = latitud !== null ? latitud.toFixed(6) : '--';
-                lonElement.textContent = longitud !== null ? longitud.toFixed(6) : '--';
-
-                if (map && latitud !== null && longitud !== null) {
-                    const newLatLng = new L.LatLng(latitud, longitud);
-
-                    if (currentMarker) {
-                        currentMarker.setLatLng(newLatLng);
-                        currentMarker.setPopupContent(`<b>Sensor GreenRoots</b><br>Humedad: ${humedad}%<br>Lat: ${latitud.toFixed(6)}, Lon: ${longitud.toFixed(6)}`).openPopup();
-                    } else {
-                        currentMarker = L.marker(newLatLng).addTo(map)
-                            .bindPopup(`<b>Sensor GreenRoots</b><br>Humedad: ${humedad}%<br>Lat: ${latitud.toFixed(6)}, Lon: ${longitud.toFixed(6)}`)
-                            .openPopup();
-                    }
-                    
-                    if (!map.getBounds().contains(newLatLng)) {
-                       map.setView(newLatLng, 13);
-                    }
-                }
-                
-                const timeString = new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit', second: '2-digit'});
-                estadoElement.innerHTML = `<i class="fas fa-check-circle" style="color: var(--primary-green);"></i> Monitoreando RTDB.`;
-                ultimaActElement.textContent = timeString;
-
-            } else {
-                humElement.textContent = latElement.textContent = lonElement.textContent = '--';
-                estadoElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="color: #f39c12;"></i> Conectado, pero el nodo /greenroots está vacío.`;
-                ultimaActElement.textContent = 'N/A';
-                
-                if (currentMarker) {
-                    map.removeLayer(currentMarker);
-                    currentMarker = null;
-                }
-            }
-        }, (error) => {
-            console.error("Error al leer datos del sensor:", error);
-            estadoElement.innerHTML = `<i class="fas fa-times-circle" style="color: var(--danger-red);"></i> Error de lectura de datos.`;
-            ultimaActElement.textContent = 'Error';
-        });
+function loadSensorData() {
+    if (!db) {
+        console.warn("No se puede iniciar el monitoreo: Firebase DB no está inicializada.");
+        return;
     }
 
-    // ===============================================
-    // 2. FUNCIONES DE VALIDACIÓN (REGISTROS PENDIENTES)
-    // ===============================================
+    const greenrootsRef = db.ref('greenroots'); 
+    const humElement = document.getElementById('humedad-sensor');
+    const latElement = document.getElementById('latitud-sensor');
+    const lonElement = document.getElementById('longitud-sensor');
+    const estadoElement = document.getElementById('estado-firebase');
+    const ultimaActElement = document.getElementById('ultima-actualizacion');
+    
+    greenrootsRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        
+        if (data) {
+            const humedad = data.humedad !== undefined ? parseFloat(data.humedad).toFixed(1) : '--';
+            const latitud = data.latitud !== undefined ? parseFloat(data.latitud) : null;
+            const longitud = data.longitud !== undefined ? parseFloat(data.longitud) : null;
 
-    async function loadPendingRegistries() {
-        // ... (Tu código para loadPendingRegistries) ...
-        // [CÓDIGO OMITIDO POR SER EXTENSO, PERO DEBE ESTAR AQUÍ]
-        listaRegistros.innerHTML = '<li><i class="fas fa-spinner fa-spin"></i> Cargando registros pendientes...</li>';
-        try {
-            const headers = getAuthHeaders();
-            if (!headers['Authorization']) {
-                throw new Error("Fallo de Autenticación: Token no disponible.");
+            humElement.textContent = humedad;
+            latElement.textContent = latitud !== null ? latitud.toFixed(6) : '--';
+            lonElement.textContent = longitud !== null ? longitud.toFixed(6) : '--';
+
+            if (map && latitud !== null && longitud !== null) {
+                const newLatLng = new L.LatLng(latitud, longitud);
+
+                if (currentMarker) {
+                    currentMarker.setLatLng(newLatLng);
+                    currentMarker.setPopupContent(`<b>Sensor GreenRoots</b><br>Humedad: ${humedad}%<br>Lat: ${latitud.toFixed(6)}, Lon: ${longitud.toFixed(6)}`).openPopup();
+                } else {
+                    currentMarker = L.marker(newLatLng).addTo(map)
+                        .bindPopup(`<b>Sensor GreenRoots</b><br>Humedad: ${humedad}%<br>Lat: ${latitud.toFixed(6)}, Lon: ${longitud.toFixed(6)}`)
+                        .openPopup();
+                }
+                
+                if (!map.getBounds().contains(newLatLng)) {
+                   map.setView(newLatLng, 13);
+                }
             }
-            const response = await fetch(`${API_URL}/admin/validacion/pendientes`, { headers: headers });
-            const data = await response.json();
-            if (!response.ok || !data.registros) {
-                listaRegistros.innerHTML = `<li style="color: red;"><i class="fas fa-exclamation-circle"></i> Error: ${data.mensaje || 'Fallo al obtener registros.'}</li>`;
-                return [];
+            
+            const timeString = new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit', second: '2-digit'});
+            estadoElement.innerHTML = `<i class="fas fa-check-circle" style="color: var(--primary-green);"></i> Monitoreando RTDB.`;
+            ultimaActElement.textContent = timeString;
+
+        } else {
+            humElement.textContent = latElement.textContent = lonElement.textContent = '--';
+            estadoElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="color: #f39c12;"></i> Conectado, pero el nodo /greenroots está vacío.`;
+            ultimaActElement.textContent = 'N/A';
+            
+            if (currentMarker) {
+                map.removeLayer(currentMarker);
+                currentMarker = null;
             }
-            return data.registros;
-        } catch (error) {
-            const message = error.message.includes("Token") ? "Error de autenticación. Por favor, reintenta iniciar sesión." : "Error de conexión con el servidor.";
-            listaRegistros.innerHTML = `<li style="color: red;"><i class="fas fa-exclamation-circle"></i> ${message}</li>`;
+        }
+    }, (error) => {
+        console.error("Error al leer datos del sensor:", error);
+        estadoElement.innerHTML = `<i class="fas fa-times-circle" style="color: var(--danger-red);"></i> Error de lectura de datos.`;
+        ultimaActElement.textContent = 'Error';
+    });
+}
+
+// ===============================================
+// 2. FUNCIONES DE VALIDACIÓN (REGISTROS PENDIENTES)
+// ===============================================
+
+async function loadPendingRegistries() {
+    // ... (Tu código para loadPendingRegistries) ...
+    // [CÓDIGO OMITIDO POR SER EXTENSO, PERO DEBE ESTAR AQUÍ]
+    listaRegistros.innerHTML = '<li><i class="fas fa-spinner fa-spin"></i> Cargando registros pendientes...</li>';
+    try {
+        const headers = getAuthHeaders();
+        if (!headers['Authorization']) {
+            throw new Error("Fallo de Autenticación: Token no disponible.");
+        }
+        const response = await fetch(`${API_URL}/admin/validacion/pendientes`, { headers: headers });
+        const data = await response.json();
+        if (!response.ok || !data.registros) {
+            listaRegistros.innerHTML = `<li style="color: red;"><i class="fas fa-exclamation-circle"></i> Error: ${data.mensaje || 'Fallo al obtener registros.'}</li>`;
             return [];
         }
+        return data.registros;
+    } catch (error) {
+        const message = error.message.includes("Token") ? "Error de autenticación. Por favor, reintenta iniciar sesión." : "Error de conexión con el servidor.";
+        listaRegistros.innerHTML = `<li style="color: red;"><i class="fas fa-exclamation-circle"></i> ${message}</li>`;
+        return [];
+    }
+}
+
+async function updateValidationUI() {
+    const registrosPendientes = await loadPendingRegistries();
+    listaRegistros.innerHTML = '';
+    contadorElemento.textContent = registrosPendientes.length;
+
+    if (registrosPendientes.length === 0) {
+        noPendingMessage.style.display = 'block';
+        return;
+    } else {
+        noPendingMessage.style.display = 'none';
     }
 
-    async function updateValidationUI() {
-        const registrosPendientes = await loadPendingRegistries();
-        listaRegistros.innerHTML = '';
-        contadorElemento.textContent = registrosPendientes.length;
+    registrosPendientes.forEach(registro => {
+        const listItem = document.createElement('li');
+        listItem.setAttribute('data-id', registro.id);
+        listItem.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 5px 0;'; 
+        const tipo = registro.tipodearbol || 'Árbol (Desconocido)';
+        const voluntario = registro.voluntarioid || 'ID Desconocido';
+        const icono = tipo.includes('Árbol') ? 'fas fa-tree' : 'fas fa-leaf';
 
-        if (registrosPendientes.length === 0) {
-            noPendingMessage.style.display = 'block';
-            return;
-        } else {
-            noPendingMessage.style.display = 'none';
-        }
+        listItem.innerHTML = `
+            <span><i class="${icono}" style="margin-right: 8px;"></i>${tipo} - Vol: ${voluntario}</span>
+            <div>
+                <button class="submit-btn btn-sm btn-approve" data-id="${registro.id}" style="width: auto; background: var(--success-green); margin-right: 5px;">
+                    <i class="fas fa-thumbs-up"></i> Aprobar
+                </button>
+                <button class="submit-btn btn-sm btn-reject" data-id="${registro.id}" style="width: auto; background: var(--danger-red);">
+                    <i class="fas fa-times"></i> Rechazar
+                </button>
+            </div>
+        `;
+        listaRegistros.appendChild(listItem);
+    });
+    addValidationEventListeners();
+}
 
-        registrosPendientes.forEach(registro => {
-            const listItem = document.createElement('li');
-            listItem.setAttribute('data-id', registro.id);
-            listItem.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 5px 0;'; 
-            const tipo = registro.tipodearbol || 'Árbol (Desconocido)';
-            const voluntario = registro.voluntarioid || 'ID Desconocido';
-            const icono = tipo.includes('Árbol') ? 'fas fa-tree' : 'fas fa-leaf';
+// Funciones de validación interna (no necesitan exposición global)
+function addValidationEventListeners() {
+    document.querySelectorAll('.btn-approve, .btn-reject').forEach(button => {
+        button.removeEventListener('click', handleValidation); // Evitar duplicados
+        button.addEventListener('click', handleValidation);
+    });
+}
 
-            listItem.innerHTML = `
-                <span><i class="${icono}" style="margin-right: 8px;"></i>${tipo} - Vol: ${voluntario}</span>
-                <div>
-                    <button class="submit-btn btn-sm btn-approve" data-id="${registro.id}" style="width: auto; background: var(--success-green); margin-right: 5px;">
-                        <i class="fas fa-thumbs-up"></i> Aprobar
-                    </button>
-                    <button class="submit-btn btn-sm btn-reject" data-id="${registro.id}" style="width: auto; background: var(--danger-red);">
-                        <i class="fas fa-times"></i> Rechazar
-                    </button>
-                </div>
-            `;
-            listaRegistros.appendChild(listItem);
-        });
-        addValidationEventListeners();
-    }
-
-    // Funciones de validación interna (no necesitan exposición global)
-    function addValidationEventListeners() {
-        document.querySelectorAll('.btn-approve, .btn-reject').forEach(button => {
-            button.removeEventListener('click', handleValidation); // Evitar duplicados
-            button.addEventListener('click', handleValidation);
-        });
-    }
-
-    // La función handleValidation solo debe extraer los datos y llamar a la función de API
+// La función handleValidation solo debe extraer los datos y llamar a la función de API
 function handleValidation(e) {
     const button = e.currentTarget;
     const isApprove = button.classList.contains('btn-approve');
@@ -472,7 +538,7 @@ function handleValidation(e) {
     // Llamar a la función asíncrona principal
     validateRegistry(itemId, nuevoEstado, motivoRechazo, listItem);
 }
-    /**
+/**
  * Maneja la lógica de la API para la validación del registro.
  */
 async function validateRegistry(itemId, nuevoEstado, motivo, listItem) {
@@ -482,10 +548,8 @@ async function validateRegistry(itemId, nuevoEstado, motivo, listItem) {
             throw new Error("Fallo de Autenticación: Token no disponible.");
         }
 
-        // 🚨 CORRECCIÓN CLAVE AQUÍ 🚨
         const bodyData = { 
             nuevoestado: nuevoEstado,
-            // ❌ Eliminada la línea incorrecta 'motivoRechazo: motivoRechazo,'
         };
         
         // ✅ Se añade el motivo SOLO si existe (para rechazo) 
@@ -530,215 +594,411 @@ async function validateRegistry(itemId, nuevoEstado, motivo, listItem) {
 }
 
 
-    // ===============================================
-    // 3. FUNCIONES DE GESTIÓN DE EVENTOS
-    // ===============================================
+// ===============================================
+// 3. FUNCIONES DE GESTIÓN DE EVENTOS
+// ===============================================
 
-    function displayEventos(eventos) {
-        eventoList.innerHTML = '';
-        if (eventos.length === 0) {
-            eventoList.innerHTML = '<p style="text-align: center; color: var(--text-light);">No hay eventos disponibles.</p>';
-            return;
-        }
-
-        eventos.forEach(evento => {
-            const card = document.createElement('div');
-            card.className = 'card event-card';
-            card.style.cssText = 'margin-bottom: 15px; padding: 20px; border-left: 5px solid var(--primary-green);';
-            card.innerHTML = `
-                <h4>${evento.titulo || 'Sin Título'} (${evento.activo ? 'Activo' : 'Inactivo'})</h4>
-                <p style="margin-bottom: 5px;">📍 ${evento.ubicacion || 'Ubicación Pendiente'}</p>
-                <p style="margin-bottom: 10px;">📅 ${evento.fecha || 'Fecha Pendiente'}</p>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button class="submit-btn" style="background: var(--warning-orange); width: auto;">
-                        <i class="fas fa-edit"></i> Editar
-                    </button>
-                    <button onclick="deleteEvento('${evento.id}')" class="submit-btn" style="background: var(--danger-red); width: auto;">
-                        <i class="fas fa-trash"></i> Eliminar
-                    </button>
-                </div>
-            `;
-            eventoList.appendChild(card);
-        });
+function displayEventos(eventos) {
+    eventoList.innerHTML = '';
+    if (eventos.length === 0) {
+        eventoList.innerHTML = '<p style="text-align: center; color: var(--text-light);">No hay eventos disponibles.</p>';
+        return;
     }
 
-    /**
-     * ✅ CORRECCIÓN: Con lógica de respaldo a IndexedDB
-     */
-    async function loadEventos() {
-        eventoList.innerHTML = '<li><i class="fas fa-spinner fa-spin"></i> Cargando eventos...</li>';
+    eventos.forEach(evento => {
+        const card = document.createElement('div');
+        card.className = 'card event-card';
+        card.style.cssText = 'margin-bottom: 15px; padding: 20px; border-left: 5px solid var(--primary-green);';
+        card.innerHTML = `
+            <h4>${evento.titulo || 'Sin Título'} (${evento.activo ? 'Activo' : 'Inactivo'})</h4>
+            <p style="margin-bottom: 5px;">📍 ${evento.ubicacion || 'Ubicación Pendiente'}</p>
+            <p style="margin-bottom: 10px;">📅 ${evento.fecha || 'Fecha Pendiente'}</p>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button onclick="editEvento('${evento.id}')" class="submit-btn" style="background: var(--warning-orange); width: auto;">
+                    <i class="fas fa-edit"></i> Editar
+                </button>
+                <button onclick="deleteEvento('${evento.id}')" class="submit-btn" style="background: var(--danger-red); width: auto;">
+                    <i class="fas fa-trash"></i> Eliminar
+                </button>
+            </div>
+        `;
+        eventoList.appendChild(card);
+    });
+}
+
+let eventosCache = [];
+
+/**
+ * Carga y renderiza los eventos (Versión Admin).
+ * Almacena los resultados en eventosCache.
+ */
+async function loadEventos() {
+    const eventosContainer = document.getElementById('eventosContainer');
+    const loadingMessage = '<p style="padding: 1.5rem;"><i class="fas fa-spinner fa-spin"></i> Cargando eventos de administración...</p>';
+    
+    const token = userData?.token; 
+    const voluntarioId = userData?.id; 
+    let eventos = [];
+    let isOffline = false;
+
+    eventosContainer.innerHTML = loadingMessage;
+
+    if (!userData || !token || !voluntarioId) {
+        eventosContainer.innerHTML = '<p style="color: var(--danger-red); padding: 1.5rem;"><i class="fas fa-user-lock"></i> No autenticado. Inicia sesión como administrador.</p>';
+        return;
+    }
+
+    try {
+        const headers = getAuthHeaders();
+        const response = await fetch(`${API_URL}/admin/eventos`, {
+            method: 'GET',
+            headers: headers,
+        });
         
-        let eventos = [];
-        let isOffline = false;
+        const data = await response.json();
 
-        // 1. INTENTAR CARGAR DE LA API (Online)
+        if (!response.ok) {
+            throw new Error(data.mensaje || `Error ${response.status}: Error al cargar eventos.`);
+        }
+        
+        eventos = data.eventos || [];
+        // ACTUALIZAR CACHÉ
+        eventosCache = eventos;
+
+    } catch (error) {
+        console.warn('❌ Fallo al cargar eventos desde la API (Admin). Intentando IndexedDB...', error.message);
+        isOffline = true;
+        
         try {
-            const headers = getAuthHeaders();
-            if (!headers['Authorization']) {
-                throw new Error("Fallo de Autenticación: Token no disponible.");
-            }
-
-            const response = await fetch(`${API_URL}/admin/eventos`, { headers: headers });
-            const data = await response.json();
+            eventos = await getAllItems(STORE_EVENTOS); 
+            eventosCache = eventos; // Actualizar caché con datos locales
             
-            if (!response.ok) {
-                throw new Error(data.mensaje || 'Error del servidor al cargar eventos');
-            }
-            
-            eventos = data.eventos || [];
-
-        } catch (error) {
-            console.warn('❌ Fallo al cargar eventos desde la API. Intentando IndexedDB...', error.message);
-            isOffline = true;
-            
-            // 2. RECURRIR A INDEXEDDB (Offline/Fallback)
-            try {
-                eventos = await getAllItems(STORE_EVENTOS); 
-                
-                if (eventos.length === 0) {
-                     eventoList.innerHTML = `<li style="color: gray; list-style: none;">
-                        <i class="fas fa-info-circle"></i> No hay eventos guardados localmente.
-                    </li>`;
-                    return;
-                }
-                
-            } catch (dbError) {
-                console.error('❌ Error fatal: No se pudo leer ni de la API ni de IndexedDB:', dbError);
-                 eventoList.innerHTML = `<li style="color: red; list-style: none;">
-                    <i class="fas fa-exclamation-triangle"></i> No hay conexión, y falló la carga local.
-                </li>`;
+            if (eventos.length === 0) {
+                eventosContainer.innerHTML = `<p style="color: gray; padding: 1.5rem;">
+                    <i class="fas fa-info-circle"></i> No hay eventos guardados localmente.
+                </p>`;
                 return;
             }
-        }
-
-        // 3. MOSTRAR RESULTADOS
-        if (isOffline) {
-            eventoList.innerHTML = `<li style="color: var(--warning-orange); margin-bottom: 10px; list-style: none;">
-                <i class="fas fa-wifi-slash"></i> Mostrando datos locales (Modo sin conexión).
-            </li>`;
-        } else {
-            eventoList.innerHTML = ''; 
-        }
-        
-        displayEventos(eventos);
-    }
-
-
-    /**
-     * Función que se llama desde onclick en la tabla de Eventos.
-     * ✅ NECESITA EXPOSICIÓN GLOBAL.
-     */
-    async function deleteEvento(eventoId) {
-        if (!confirm(`¿Estás seguro de eliminar el evento ${eventoId}? Esta acción es irreversible.`)) {
+        } catch (dbError) {
+            console.error('❌ Error fatal: No se pudo leer ni de la API ni de IndexedDB:', dbError);
+            eventosContainer.innerHTML = `<p style="color: var(--danger-red); padding: 1.5rem;">
+                <i class="fas fa-exclamation-triangle"></i> Falló la carga local.
+            </p>`;
             return;
         }
+    }
+
+    // PREPARAR Y RENDERIZAR RESULTADOS
+    eventosContainer.innerHTML = ''; 
+
+    if (isOffline) {
+        const offlineMessage = document.createElement('p');
+        offlineMessage.style.cssText = 'color: var(--warning-orange); padding: 0 1.5rem 1rem 1.5rem;';
+        offlineMessage.innerHTML = '<i class="fas fa-wifi-slash"></i> Mostrando datos locales (Modo sin conexión).';
+        eventosContainer.appendChild(offlineMessage);
+    }
+    
+    if (eventos.length === 0) {
+        const emptyMessage = '<p style="padding: 1.5rem;">No hay eventos para mostrar.</p>';
+        eventosContainer.innerHTML += emptyMessage;
+        return;
+    }
+    
+    // Renderizar todos los eventos de administración
+    eventos.forEach(evento => { 
+        const fechaObj = new Date(evento.fecha);
+        const esFechaValida = !isNaN(fechaObj.getTime());
         
+        let dia, mes;
+
+        if (esFechaValida) {
+            dia = fechaObj.getDate().toString().padStart(2, '0'); 
+            mes = fechaObj.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase().replace('.', '');
+        } else {
+            dia = '??';
+            mes = 'FECHA';
+        }
+        
+        const eventoItem = document.createElement('div');
+        eventoItem.className = 'activity-item';
+        const participantesCount = evento.participantes?.length || 0; 
+        
+        const puedeEliminar = true; // Asumiendo permisos de Admin
+        
+        const adminActions = puedeEliminar ? `
+            <button class="btn-edit" title="Editar Evento" onclick="editEvento('${evento.id}')">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn-delete" title="Eliminar Evento" onclick="deleteEvento('${evento.id}')">
+                <i class="fas fa-trash"></i>
+            </button>
+        ` : '';
+
+        eventoItem.innerHTML = `
+            <div class="activity-date">
+                <span class="day">${dia}</span>
+                <span class="month">${mes}</span>
+            </div>
+            <div class="activity-info">
+                <h4>${evento.titulo} ${!evento.activo ? '<span class="text-xs text-red-500 font-semibold">(INACTIVO)</span>' : ''}</h4>
+                <p><i class="fas fa-map-marker-alt"></i> ${evento.ubicacion || 'Ubicación pendiente'}</p>
+                <p><i class="fas fa-clock"></i> ${evento.hora || 'Hora pendiente'}</p>
+                <p><i class="fas fa-users"></i> ${participantesCount} participantes</p>
+            </div>
+            ${adminActions}
+        `;
+       eventosContainer.appendChild(eventoItem);
+    });
+}
+
+/**
+ * Abre el modal de edición y precarga los datos del evento seleccionado.
+ * @param {string} eventoId - ID del evento a editar.
+ * ✅ EXPUESTA AL GLOBAL SCOPE
+ */
+function editEvento(eventoId) {
+    const evento = eventosCache.find(e => e.id === eventoId);
+
+    if (!evento) {
+        console.error(`Evento con ID ${eventoId} no encontrado en la caché.`);
+        alert(`Error: Evento ID ${eventoId} no encontrado. Recarga la página e intenta de nuevo.`);
+        return;
+    }
+
+    // 1. Llenar el formulario con los datos actuales
+    document.getElementById('eventoIdEdit').value = evento.id;
+    document.getElementById('eventoTituloEdit').value = evento.titulo;
+    document.getElementById('eventoDescripcionEdit').value = evento.descripcion;
+    document.getElementById('eventoUbicacionEdit').value = evento.ubicacion;
+    document.getElementById('eventoActivoEdit').checked = evento.activo;
+
+    // 2. Manejo de Fecha y Hora
+    let fechaISO = '';
+    let hora = evento.hora || '';
+
+    // Si la fecha es un objeto Date o un string ISO válido
+    if (evento.fecha instanceof Date) {
+        fechaISO = evento.fecha.toISOString().split('T')[0];
+    } else if (typeof evento.fecha === 'string' && evento.fecha.includes('-')) {
+        // Intenta usar el string ISO si es el formato correcto (YYYY-MM-DD)
+        fechaISO = evento.fecha.split('T')[0];
+    }
+    
+    document.getElementById('eventoFechaEdit').value = fechaISO;
+    document.getElementById('eventoHoraEdit').value = hora;
+
+    // 3. Mostrar el modal
+    document.getElementById('editEventoModal').style.display = 'flex';
+}
+
+// 4. Configurar el cierre del modal de Edición
+document.getElementById('closeEditModal').addEventListener('click', () => {
+    document.getElementById('editEventoModal').style.display = 'none';
+});
+
+/**
+ * Envía los datos actualizados del evento al backend (PUT /api/admin/eventos/:id).
+ * @param {string} eventoId - ID del evento a actualizar.
+ * @param {object} updates - Objeto con los campos a modificar.
+ */
+async function updateEvento(eventoId, updates) {
+    // Es buena práctica mostrar un estado de carga mientras se procesa
+    const submitBtn = document.querySelector('#editEventoForm button[type="submit"]');
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+    submitBtn.disabled = true;
+
+    try {
+        const headers = getAuthHeaders();
+        const response = await fetch(`${API_URL}/admin/eventos/${eventoId}`, {
+            method: 'PUT',
+            headers: headers,
+            body: JSON.stringify(updates)
+        });
+        
+        submitBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Guardar Cambios';
+        submitBtn.disabled = false;
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.mensaje || 'Error al actualizar evento');
+        }
+
+        // Éxito:
+        document.getElementById('editEventoModal').style.display = 'none';
+        // Usa tu sistema de notificación temporal (ej: un mensaje en eventosContainer)
+        console.log(`Evento ${eventoId} actualizado correctamente.`);
+        
+        loadEventos(); // Recarga la lista para ver los cambios
+
+    } catch (error) {
+        submitBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Guardar Cambios';
+        submitBtn.disabled = false;
+        console.error('Fallo al actualizar evento:', error);
+        // Muestra un mensaje de error al usuario
+        alert(`Fallo en la actualización: ${error.message}`); 
+    }
+}
+    
+/**
+ * Muestra el modal de confirmación general.
+ * (Función que ya existía, pero la mantengo para referencia)
+ */
+function showConfirmModal(message, onConfirm, confirmText = "Confirmar", confirmStyle = "background: var(--danger-red);") {
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('modalMessage').innerHTML = message; // Usar innerHTML para interpretar el **negrita**
+    
+    const confirmBtn = document.getElementById('modalConfirm');
+    const cancelBtn = document.getElementById('modalCancel');
+
+    confirmBtn.textContent = confirmText;
+    confirmBtn.style.cssText = confirmStyle;
+
+    // Limpiar listeners anteriores
+    confirmBtn.onclick = null;
+    cancelBtn.onclick = null;
+
+    confirmBtn.onclick = () => {
+        modal.style.display = 'none';
+        onConfirm(); // Ejecuta la acción de eliminación
+    };
+    cancelBtn.onclick = () => {
+        modal.style.display = 'none'; // Cierra el pop-up
+    };
+
+    // Esto hace que el modal aparezca en pantalla (el "pop-up")
+    modal.style.display = 'flex'; 
+}
+
+/**
+ * Función que se llama desde onclick en la tabla de Eventos.
+ * ✅ UTILIZA EL MODAL DE CONFIRMACIÓN.
+ */
+async function deleteEvento(eventoId) {
+        
+    // Llama al pop-up de confirmación
+    showConfirmModal(`⚠️ ¿Estás seguro de **eliminar** el evento con ID **${eventoId}**? Esta acción es irreversible.`, async () => {
+        
+        const eventosContainer = document.getElementById('eventosContainer');
+        
+        // Muestra un indicador de carga temporal en la parte superior
+        eventosContainer.insertAdjacentHTML('afterbegin', `<p id="tempStatus" style="color: var(--primary-blue); padding: 0 1.5rem 1rem 1.5rem;"><i class="fas fa-sync-alt fa-spin"></i> Eliminando evento...</p>`);
+
         try {
             const headers = getAuthHeaders();
             const response = await fetch(`${API_URL}/admin/eventos/${eventoId}`, {
                 method: 'DELETE',
                 headers: headers
             });
+            
+            document.getElementById('tempStatus')?.remove();
 
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.mensaje || 'Error al eliminar evento');
             }
-
-            alert('Evento eliminado correctamente.');
-            loadEventos(); 
+            
+            // Notificación de éxito (temporal)
+            eventosContainer.insertAdjacentHTML('afterbegin', `<p id="successStatus" style="color: var(--primary-green); padding: 0 1.5rem 1rem 1.5rem;"><i class="fas fa-check-circle"></i> Evento eliminado correctamente.</p>`);
+            setTimeout(() => document.getElementById('successStatus')?.remove(), 3000);
+            
+            loadEventos(); // Recarga la lista de eventos
             
         } catch (error) {
+            document.getElementById('tempStatus')?.remove();
             console.error('Error al eliminar evento:', error);
-            alert(`Fallo en la eliminación: ${error.message}`);
+            // Notificación de error (temporal)
+            eventosContainer.insertAdjacentHTML('afterbegin', `<p id="errorStatus" style="color: var(--danger-red); padding: 0 1.5rem 1rem 1.5rem;"><i class="fas fa-exclamation-triangle"></i> Fallo en la eliminación: ${error.message}</p>`);
+            setTimeout(() => document.getElementById('errorStatus')?.remove(), 5000);
+            
+            loadEventos(); // Recarga para asegurar que el estado visual es correcto
         }
-    }
-
-
-    // ===============================================
-    // 4. FUNCIONES DE GESTIÓN DE USUARIOS
-    // ===============================================
-
-    function displayUsers(users) {
-    const usersList = document.getElementById('usersList'); // Asegurar que esta variable está disponible
-    usersList.innerHTML = ''; // Limpiar lista
-    
-    if (users.length === 0) {
-        usersList.innerHTML = '<p style="text-align: center; color: var(--text-light);">No hay usuarios registrados.</p>';
-        return;
-    }
-
-    const table = document.createElement('table');
-    table.className = 'users-table';
-    table.style.cssText = 'width: 100%; border-collapse: collapse;';
-    table.innerHTML = `
-        <thead>
-            <tr style="background: var(--light-bg);">
-                <th style="padding: 10px; text-align: left;">ID</th>
-                <th style="padding: 10px; text-align: left;">Email</th>
-                <th style="padding: 10px; text-align: center;">Rol Actual</th>
-                <th style="padding: 10px; text-align: center;">Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-        </tbody>
-    `;
-    const tbody = table.querySelector('tbody');
-
-    users.forEach(user => {
-        // 🚨 CORRECCIÓN CLAVE: Usar 'user.uid' en lugar de 'user.id'
-        if (!user || !user.uid || !user.email || !user.rol) { 
-            console.warn('Usuario con datos incompletos o inválidos omitido:', user);
-            return; // Omite este registro
-        }
-        
-        const shortId = user.uid.substring(0, 8); // Usamos uid para el substring
-        const userId = user.uid; // El ID completo para las funciones de acción
-
-        const row = tbody.insertRow();
-        row.innerHTML = `
-            <td style="padding: 10px;">${shortId}...</td>
-            <td style="padding: 10px;">${user.email}</td>
-            <td style="padding: 10px; text-align: center;">
-                <span style="font-weight: bold; color: ${user.rol.toLowerCase() === 'administrador' ? 'var(--danger-red)' : 'var(--primary-green)'}">${user.rol}</span>
-            </td>
-            <td style="padding: 10px; text-align: center;">
-    <select id="roleSelect-${shortId}" onchange="updateUser('${userId}')" style="padding: 5px; border-radius: 5px; margin-right: 10px;">
-        <option value="Voluntario" ${user.rol === 'Voluntario' ? 'selected' : ''}>Voluntario</option>
-        <option value="Administrador" ${user.rol === 'Administrador' ? 'selected' : ''}>Administrador</option>
-        <option value="Gobierno" ${user.rol === 'Gobierno' ? 'selected' : ''}>Gobierno</option>
-    </select>
-    <button onclick="deleteUser('${userId}')" class="submit-btn" style="background: var(--danger-red); width: auto; padding: 5px 10px;">
-        <i class="fas fa-user-minus"></i>
-    </button>
-</td>
-        `;
-    });
-
-    usersList.appendChild(table);
+    }, "Eliminar", "background: var(--danger-red);"); // Texto y estilo para el botón de confirmación
 }
 
-    /**
-     * Función que se llama desde onchange en la tabla de Usuarios.
-     * ✅ NECESITA EXPOSICIÓN GLOBAL.
-     */
-    async function updateUser(uid) {
-    // 1. Obtener el ID corto para construir el ID del elemento SELECT
-    const shortId = uid.substring(0, 8); 
-    const select = document.getElementById(`roleSelect-${shortId}`); // Usar el guion (-) como en el HTML
-    const newRole = select ? select.value : null;
 
-    if (!newRole) {
-        alert("Error: No se pudo determinar el nuevo rol.");
-        return;
-    }
+// ===============================================
+// 4. FUNCIONES DE GESTIÓN DE USUARIOS
+// ===============================================
 
-    if (!confirm(`¿Estás seguro de cambiar el rol del usuario ${shortId}... a ${newRole}?`)) {
-        // Recargar para revertir el estado visual del select
-        loadUsers(); 
-        return;
+function displayUsers(users) {
+const usersList = document.getElementById('usersList'); // Asegurar que esta variable está disponible
+usersList.innerHTML = ''; // Limpiar lista
+
+if (users.length === 0) {
+    usersList.innerHTML = '<p style="text-align: center; color: var(--text-light);">No hay usuarios registrados.</p>';
+    return;
+}
+
+const table = document.createElement('table');
+table.className = 'users-table';
+table.style.cssText = 'width: 100%; border-collapse: collapse;';
+table.innerHTML = `
+    <thead>
+        <tr style="background: var(--light-bg);">
+            <th style="padding: 10px; text-align: left;">ID</th>
+            <th style="padding: 10px; text-align: left;">Email</th>
+            <th style="padding: 10px; text-align: center;">Rol Actual</th>
+            <th style="padding: 10px; text-align: center;">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+`;
+const tbody = table.querySelector('tbody');
+
+users.forEach(user => {
+    // 🚨 CORRECCIÓN CLAVE: Usar 'user.uid' en lugar de 'user.id'
+    if (!user || !user.uid || !user.email || !user.rol) { 
+        console.warn('Usuario con datos incompletos o inválidos omitido:', user);
+        return; // Omite este registro
     }
     
+    const shortId = user.uid.substring(0, 8); // Usamos uid para el substring
+    const userId = user.uid; // El ID completo para las funciones de acción
+
+    const row = tbody.insertRow();
+    row.innerHTML = `
+        <td style="padding: 10px;">${shortId}...</td>
+        <td style="padding: 10px;">${user.email}</td>
+        <td style="padding: 10px; text-align: center;">
+            <span style="font-weight: bold; color: ${user.rol.toLowerCase() === 'administrador' ? 'var(--danger-red)' : 'var(--primary-green)'}">${user.rol}</span>
+        </td>
+        <td style="padding: 10px; text-align: center;">
+<select id="roleSelect-${shortId}" onchange="updateUser('${userId}')" style="padding: 5px; border-radius: 5px; margin-right: 10px;">
+    <option value="Voluntario" ${user.rol === 'Voluntario' ? 'selected' : ''}>Voluntario</option>
+    <option value="Administrador" ${user.rol === 'Administrador' ? 'selected' : ''}>Administrador</option>
+    <option value="Gobierno" ${user.rol === 'Gobierno' ? 'selected' : ''}>Gobierno</option>
+</select>
+<button onclick="deleteUser('${userId}')" class="submit-btn" style="background: var(--danger-red); width: auto; padding: 5px 10px;">
+    <i class="fas fa-user-minus"></i>
+</button>
+</td>
+    `;
+});
+
+usersList.appendChild(table);
+}
+
+/**
+ * Función que se llama desde onchange en la tabla de Usuarios.
+ * ✅ NECESITA EXPOSICIÓN GLOBAL.
+ */
+async function updateUser(uid) {
+// 1. Obtener el ID corto para construir el ID del elemento SELECT
+const shortId = uid.substring(0, 8); 
+const select = document.getElementById(`roleSelect-${shortId}`); // Usar el guion (-) como en el HTML
+const newRole = select ? select.value : null;
+
+if (!newRole) {
+    alert("Error: No se pudo determinar el nuevo rol.");
+    return;
+}
+
+showConfirmModal(`¿Estás seguro de cambiar el rol del usuario ${shortId}... a **${newRole}**?`, async () => {
+    
+    // Simular confirm() deshabilitando el select
+    select.disabled = true;
+
     try {
         const headers = getAuthHeaders();
         
@@ -767,17 +1027,17 @@ async function validateRegistry(itemId, nuevoEstado, motivo, listItem) {
         alert(`❌ Fallo en la actualización: ${error.message}`);
         loadUsers(); // Recargar para revertir el estado visual en caso de error
     }
+}, "Cambiar Rol", "background: var(--warning-orange);");
 }
 
-    /**
-     * Función que se llama desde onclick en la tabla de Usuarios.
-     * ✅ NECESITA EXPOSICIÓN GLOBAL.
-     */
-    async function deleteUser(userId) {
-        if (!confirm(`¿Estás seguro de eliminar al usuario ${userId.substring(0, 8)}...? Esta acción es irreversible.`)) {
-            return;
-        }
-        
+/**
+ * Función que se llama desde onclick en la tabla de Usuarios.
+ * ✅ UTILIZA EL MODAL DE CONFIRMACIÓN.
+ */
+async function deleteUser(userId) {
+
+    showConfirmModal(`⚠️ ¿Estás seguro de eliminar permanentemente al usuario **${userId.substring(0, 8)}...**? Esta acción es irreversible.`, async () => {
+
         try {
             const headers = getAuthHeaders();
             const response = await fetch(`${API_URL}/admin/usuarios/${userId}`, {
@@ -797,169 +1057,188 @@ async function validateRegistry(itemId, nuevoEstado, motivo, listItem) {
             console.error('Error al eliminar usuario:', error);
             alert(`Fallo en la eliminación: ${error.message}`);
         }
-    }
+    }, "Eliminar Usuario", "background: var(--danger-red);");
+}
 
-    async function loadUsers() {
-        usersList.innerHTML = '<li><i class="fas fa-spinner fa-spin"></i> Cargando usuarios...</li>';
-        try {
-            const headers = getAuthHeaders();
-            if (!headers['Authorization']) {
-                throw new Error("Fallo de Autenticación: Token no disponible.");
-            }
-
-            const response = await fetch(`${API_URL}/admin/usuarios`, {
-                headers: headers
-            });
-            
-            const data = await response.json();
-            
-            if (!response.ok || !data.usuarios) {
-                throw new Error(data.mensaje || 'Error al cargar usuarios');
-            }
-            
-            displayUsers(data.usuarios);
-            
-        } catch (error) {
-            console.error('Error loading users:', error);
-            usersList.innerHTML = `<li style="color: red; list-style: none;"><i class="fas fa-exclamation-circle"></i> Error: ${error.message}</li>`;
+async function loadUsers() {
+    usersList.innerHTML = '<li><i class="fas fa-spinner fa-spin"></i> Cargando usuarios...</li>';
+    try {
+        const headers = getAuthHeaders();
+        if (!headers['Authorization']) {
+            throw new Error("Fallo de Autenticación: Token no disponible.");
         }
-    }
 
-
-    // ===========================================
-    // ✅ EXPOSICIÓN GLOBAL DE FUNCIONES (¡CRÍTICO!)
-    // ===========================================
-    // Hacemos que todas las funciones llamadas directamente desde el HTML (con onclick, onchange) sean visibles.
-
-    window.updateUser = updateUser;
-    window.deleteUser = deleteUser; 
-    window.deleteEvento = deleteEvento;
-    // window.editEvento = editEvento; // Si la implementas, hazla global también
-
-
-    // ===============================================
-    // 5. EVENT LISTENERS y LÓGICA DE INICIO
-    // ===============================================
-
-    // Listener para el modal de Crear Evento
-    document.getElementById('createEventoForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
+        const response = await fetch(`${API_URL}/admin/usuarios`, {
+            headers: headers
+        });
         
-        const data = {
-            titulo: document.getElementById('eventoTitulo').value,
-            descripcion: document.getElementById('eventoDescripcion').value,
-            fecha: document.getElementById('eventoFecha').value,
-            hora: document.getElementById('eventoHora').value,
-            ubicacion: document.getElementById('eventoUbicacion').value,
-            activo: document.getElementById('eventoActivo').checked
-        };
+        const data = await response.json();
         
-        // Objeto para IndexedDB (solo datos relevantes para la visualización local)
-        const eventoDataForDB = { 
-            id: 'temp-' + Date.now(), // ID temporal para IndexedDB (luego se actualizaría con el ID real de la API)
-            titulo: data.titulo, 
-            fecha: data.fecha,
-            ubicacion: data.ubicacion,
-            descripcion: data.descripcion,
-            activo: data.activo,
-            timestamp: new Date().toISOString()
-        };
-
-        try {
-            const headers = getAuthHeaders();
-            if (!headers['Authorization']) {
-                throw new Error("Fallo de Autenticación: Token no disponible.");
-            }
-
-            // 1. Llamada a la API (Backend)
-            const response = await fetch(`${API_URL}/admin/eventos`, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(data)
-            });
-            
-            const result = await response.json();
-            
-            if (!response.ok) {
-                alert(`Error: ${result.mensaje}`);
-                return;
-            }
-
-            // 2. Lógica de IndexedDB (Guardado local después del éxito de la API)
-            // Usamos el ID real de la API si está disponible, o el temporal.
-            eventoDataForDB.id = result.id || eventoDataForDB.id; 
-            await putItem(STORE_EVENTOS, eventoDataForDB); 
-            console.log('Evento creado y guardado en IndexedDB con ID:', eventoDataForDB.id);
-
-            alert('Evento creado exitosamente');
-            document.getElementById('createEventoModal').style.display = 'none';
-            document.getElementById('createEventoForm').reset();
-            loadEventos();
-            
-        } catch (error) {
-            console.error('Error creating evento:', error);
-            alert('Error al crear evento: ' + error.message);
+        if (!response.ok || !data.usuarios) {
+            throw new Error(data.mensaje || 'Error al cargar usuarios');
         }
-    });
+        
+        displayUsers(data.usuarios);
+        
+    } catch (error) {
+        console.error('Error loading users:', error);
+        usersList.innerHTML = `<li style="color: red; list-style: none;"><i class="fas fa-exclamation-circle"></i> Error: ${error.message}</li>`;
+    }
+}
 
-    // Listeners de la Interfaz de Usuario
-    document.getElementById('refreshBtn')?.addEventListener('click', updateValidationUI);
-    document.getElementById('loadUsersBtn')?.addEventListener('click', loadUsers);
+
+// ===========================================
+// ✅ EXPOSICIÓN GLOBAL DE FUNCIONES (¡CRÍTICO!)
+// ===========================================
+// Hacemos que todas las funciones llamadas directamente desde el HTML (con onclick, onchange) sean visibles.
+
+window.updateUser = updateUser;
+window.deleteUser = deleteUser; 
+window.deleteEvento = deleteEvento;
+window.editEvento = editEvento; 
+
+
+// ===============================================
+// 5. EVENT LISTENERS y LÓGICA DE INICIO
+// ===============================================
+
+// Listener para el modal de Crear Evento
+document.getElementById('createEventoForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
     
-    document.getElementById('createEventoBtn')?.addEventListener('click', () => {
-        document.getElementById('createEventoModal').style.display = 'flex';
-    });
+    const data = {
+        titulo: document.getElementById('eventoTitulo').value,
+        descripcion: document.getElementById('eventoDescripcion').value,
+        fecha: document.getElementById('eventoFecha').value,
+        hora: document.getElementById('eventoHora').value,
+        ubicacion: document.getElementById('eventoUbicacion').value,
+        activo: document.getElementById('eventoActivo').checked
+    };
+    
+    // Objeto para IndexedDB (solo datos relevantes para la visualización local)
+    const eventoDataForDB = { 
+        id: 'temp-' + Date.now(), // ID temporal para IndexedDB (luego se actualizaría con el ID real de la API)
+        titulo: data.titulo, 
+        fecha: data.fecha,
+        ubicacion: data.ubicacion,
+        descripcion: data.descripcion,
+        activo: data.activo,
+        timestamp: new Date().toISOString()
+    };
 
-    document.getElementById('closeEventoModal')?.addEventListener('click', () => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers['Authorization']) {
+            throw new Error("Fallo de Autenticación: Token no disponible.");
+        }
+
+        // 1. Llamada a la API (Backend)
+        const response = await fetch(`${API_URL}/admin/eventos`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            alert(`Error: ${result.mensaje}`);
+            return;
+        }
+
+        // 2. Lógica de IndexedDB (Guardado local después del éxito de la API)
+        // Usamos el ID real de la API si está disponible, o el temporal.
+        eventoDataForDB.id = result.id || eventoDataForDB.id; 
+        await putItem(STORE_EVENTOS, eventoDataForDB); 
+        console.log('Evento creado y guardado en IndexedDB con ID:', eventoDataForDB.id);
+
+        alert('Evento creado exitosamente');
         document.getElementById('createEventoModal').style.display = 'none';
         document.getElementById('createEventoForm').reset();
-    });
+        loadEventos();
+        
+    } catch (error) {
+        console.error('Error creating evento:', error);
+        alert('Error al crear evento: ' + error.message);
+    }
+});
 
-    document.getElementById('showEventosBtn')?.addEventListener('click', () => {
-        userManagementSection.style.display = 'none';
-        eventoManagementSection.style.display = eventoManagementSection.style.display === 'none' ? 'block' : 'none';
-        if (eventoManagementSection.style.display === 'block') {
-            loadEventos();
+// Listener para manejar el envío del formulario de edición
+document.getElementById('editEventoForm').addEventListener('submit', function(event) {
+    event.preventDefault(); // Detener el envío normal del formulario
+
+    const eventoId = document.getElementById('eventoIdEdit').value;
+    
+    const updates = {
+        titulo: document.getElementById('eventoTituloEdit').value,
+        descripcion: document.getElementById('eventoDescripcionEdit').value,
+        fecha: document.getElementById('eventoFechaEdit').value, // La fecha se envía como string YYYY-MM-DD
+        hora: document.getElementById('eventoHoraEdit').value,
+        ubicacion: document.getElementById('eventoUbicacionEdit').value,
+        activo: document.getElementById('eventoActivoEdit').checked,
+    };
+
+    updateEvento(eventoId, updates);
+});
+
+// Listeners de la Interfaz de Usuario
+document.getElementById('refreshBtn')?.addEventListener('click', updateValidationUI);
+document.getElementById('loadUsersBtn')?.addEventListener('click', loadUsers);
+
+document.getElementById('createEventoBtn')?.addEventListener('click', () => {
+    document.getElementById('createEventoModal').style.display = 'flex';
+});
+
+document.getElementById('closeEventoModal')?.addEventListener('click', () => {
+    document.getElementById('createEventoModal').style.display = 'none';
+    document.getElementById('createEventoForm').reset();
+});
+
+document.getElementById('showEventosBtn')?.addEventListener('click', () => {
+    userManagementSection.style.display = 'none';
+    eventoManagementSection.style.display = eventoManagementSection.style.display === 'none' ? 'block' : 'none';
+    if (eventoManagementSection.style.display === 'block') {
+        loadEventos();
+    }
+});
+
+document.getElementById('loadUsersBtnAlt')?.addEventListener('click', () => {
+    eventoManagementSection.style.display = 'none';
+    userManagementSection.style.display = userManagementSection.style.display === 'none' ? 'block' : 'none';
+    if (userManagementSection.style.display === 'block') {
+        loadUsers();
+    }
+});
+
+// Lógica de Cerrar Sesión
+document.getElementById("logoutBtn").addEventListener("click", (e) => {
+    e.preventDefault();
+    localStorage.clear();
+    alert("Has cerrado sesión.");
+    window.location.replace("login.html");
+});
+
+// Inicializar la lista, el mapa, Firebase y IndexedDB al cargar la página
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await openDB(); 
+        console.log("IndexedDB abierta exitosamente.");
+    } catch (error) {
+        console.error("No se pudo abrir IndexedDB:", error);
+    }
+
+     if (isAllowed) {
+        // [Existente] Carga UI de validación
+        updateValidationUI();
+        
+        // [NUEVO] Inicializar Mapa y Firebase
+        initializeMap();
+        const firebaseReady = await initializeFirebase();
+        if (firebaseReady) {
+            loadSensorData();
         }
-    });
-
-    document.getElementById('loadUsersBtnAlt')?.addEventListener('click', () => {
-        eventoManagementSection.style.display = 'none';
-        userManagementSection.style.display = userManagementSection.style.display === 'none' ? 'block' : 'none';
-        if (userManagementSection.style.display === 'block') {
-            loadUsers();
-        }
-    });
-
-    // Lógica de Cerrar Sesión
-    document.getElementById("logoutBtn").addEventListener("click", (e) => {
-        e.preventDefault();
-        localStorage.clear();
-        alert("Has cerrado sesión.");
-        window.location.replace("login.html");
-    });
-
-    // Inicializar la lista, el mapa, Firebase y IndexedDB al cargar la página
-    document.addEventListener('DOMContentLoaded', async () => {
-        try {
-            await openDB(); 
-            console.log("IndexedDB abierta exitosamente.");
-        } catch (error) {
-            console.error("No se pudo abrir IndexedDB:", error);
-        }
-
-         if (isAllowed) {
-            // [Existente] Carga UI de validación
-            updateValidationUI();
-            
-            // [NUEVO] Inicializar Mapa y Firebase
-            initializeMap();
-            const firebaseReady = await initializeFirebase();
-            if (firebaseReady) {
-                loadSensorData();
-            }
-         }
-    });
+     }
+});
 </script>
 </body>
 </html>
