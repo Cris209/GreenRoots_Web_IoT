@@ -99,6 +99,49 @@
             color: var(--text-dark);
         }
 
+        .notificacion-humedad {
+    padding: 10px 15px;
+    border-radius: 10px; /* Consistente con otros elementos del dashboard */
+    font-weight: 600;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 90%; 
+    max-width: 400px;
+    margin: 0 auto; /* Para centrar la notificación */
+    font-size: 0.95rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Sombra suave */
+}
+
+.notificacion-humedad i {
+    font-size: 1.2rem;
+}
+
+/* Clases de Estado basadas en base.css */
+/* ÉXITO: Humedad 20% a 50% */
+.status-success {
+    background-color: var(--light-green); 
+    color: var(--primary-green); 
+    border: 1px solid var(--accent-green);
+}
+
+/* ADVERTENCIA: Humedad < 20% (Necesita agua) */
+.status-warning {
+    background-color: #fff3cd; /* Amarillo suave */
+    color: var(--warning-orange); 
+    border: 1px solid var(--warning-orange);
+}
+
+/* PELIGRO: Humedad > 50% (Se está ahogando) */
+.status-danger {
+    background-color: #f8d7da; /* Rojo suave */
+    color: var(--danger-red); 
+    border: 1px solid var(--danger-red);
+}
+
+
         /* Responsive Design */
         @media (max-width: 600px) {
             .sensor-data { grid-template-columns: 1fr; padding: 1rem; }
@@ -125,7 +168,7 @@
                 <div class="user-menu">
                     <div class="user-info">
                         <i class="fas fa-user-circle"></i>
-                        <span id="userName">Voluntario</span>
+                        <span id="userName">Gobierno</span>
                     </div>
                     <button class="logout-btn" onclick="logout()">
                         <i class="fas fa-sign-out-alt"></i>
@@ -149,7 +192,9 @@
             </div>
             
             <div class="dashboard-grid">
-                
+                <button id="exportReportBtn" class="btn btn-primary">
+    <i class="fas fa-file-excel"></i> Exportar Reporte CSV
+</button>
                 <div class="dashboard-panel sensor-panel"> 
                     <div class="panel-header">
                         <h3><i class="fas fa-microchip"></i> Monitoreo del Sensor</h3>
@@ -172,9 +217,11 @@
                             <span class="data-unit">°</span>
                         </div>
                     </div>
-                    <p style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: var(--text-light); padding-bottom: 1.5rem;">
-                        Datos de GreenRoots RTDB. Última actualización: <span id="ultima-actualizacion">--</span>
-                    </p>
+                     <p style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: var(--text-light);">Datos de GreenRoots RTDB. Actualización: <span id="ultima-actualizacion">--</span></p>
+                    
+                    <div id="humedad-notificacion" class="notificacion-humedad" style="display: none; margin-top: 15px;">
+                        <i class="fas fa-spinner fa-pulse"></i> Cargando estado...
+                    </div>
                 </div>
                 
                 <div class="dashboard-panel map-panel">
@@ -184,14 +231,9 @@
                     <div id="mapContainer"></div>
                 </div>
                 
-                <div class="dashboard-panel chart-panel" style="grid-column: span 2;">
-                    <div class="panel-header"><h3><i class="fas fa-chart-bar"></i> Distribución de Temperaturas</h3></div>
-                    <div style="padding: 1.5rem;"><canvas id="temperatureChart" height="200"></canvas></div>
-                </div>
-                
                 <div class="dashboard-panel chart-panel" style="grid-column: span 1;">
                     <div class="panel-header"><h3><i class="fas fa-chart-line"></i> Datos Históricos</h3></div>
-                    <div style="padding: 1.5rem;"><canvas id="historicChart" height="200"></canvas></div>
+                    <div style="padding: 1.5rem;"><canvas id="historicoArbolesChart" height="200"></canvas></div>
                 </div>
 
                 <div class="dashboard-panel chart-panel" style="grid-column: span 1; padding: 1.5rem; align-self: flex-start;">
@@ -209,8 +251,8 @@
                     <div class="panel-header">
                         <h3><i class="fas fa-calendar"></i> Lista de Eventos Creados</h3>
                     </div>
-                    <div id="eventoList" style="padding: 1.5rem;">
-                        <p style="text-align: center; color: var(--text-light);">Presiona "Ver Eventos Creados" para cargar la lista.</p>
+                     <div class="activities-list" id="eventosContainer">
+                        <p style="padding: 1.5rem;"><i class="fas fa-spinner fa-spin"></i> Cargando eventos...</p>
                     </div>
                 </div>
                 
@@ -263,280 +305,567 @@
         </div>
     </div>
     <script type="module">
-        // =================================================================
-        // Variables y Helpers de Autenticación
-        // =================================================================
-        const userData = localStorage.getItem("usuario") ? JSON.parse(localStorage.getItem("usuario")) : {};
-        const API_URL = "https://greenroots-web.onrender.com/api"; // URL de la API de eventos
+    // =================================================================
+    // Variables y Helpers de Autenticación (CORREGIDO)
+    // =================================================================
+    // Nota: El 'token' debe estar en localStorage, no en userData si se usa
+    // para las llamadas fetch. Usaremos localStorage.getItem('token') directamente.
+    const userDataJSON = localStorage.getItem("usuario");
+    const userData = userDataJSON ? JSON.parse(userDataJSON) : {};
+    
+    // Su URL de API real
+    const API_URL = "https://greenroots-web.onrender.com/api"; 
 
-        /**
-         * Genera los headers de autenticación (Authorization y X-User-Rol)
-         */
-        function getAuthHeaders() {
-            const userToken = userData.token; 
-            
-            if (!userToken) {
-                console.error("Token de autenticación no encontrado. Se requiere iniciar sesión.");
-                // Retorna un objeto vacío, lo que causará un error 401 en fetch
-                return {}; 
-            }
+    /**
+     * Genera los headers de autenticación (Authorization y X-User-Rol)
+     */
+    function getAuthHeaders() {
+    // Intenta obtener la información completa del usuario del localStorage
+    const userDataJSON = localStorage.getItem('usuario');
+    
+    if (!userDataJSON) {
+        // Si no hay datos, retorna encabezados vacíos. El backend devolverá 401.
+        return {};
+    }
 
-            return {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userToken}`, 
-                // Asumimos que el Gobierno usa su rol 'Gobierno' para el endpoint
-                'X-User-Rol': userData.rol || 'Gobierno' 
-            };
+    const userData = JSON.parse(userDataJSON);
+    
+    // 🚨 CLAVE: El token está dentro del objeto de usuario bajo la clave 'token'
+    const authToken = userData.token; 
+    
+    // Si tienes información de rol que el backend requiere (opcional, pero buena práctica)
+    const userRol = userData.rol;
+
+    const headers = {
+        // Es una buena práctica incluir Content-Type
+        'Content-Type': 'application/json' 
+    };
+
+    if (authToken) {
+        // Formato estándar 'Bearer Token' para autenticación
+        headers['Authorization'] = `Bearer ${authToken}`; 
+    }
+    
+    if (userRol) {
+        headers['X-User-Rol'] = userRol; 
+    }
+
+    return headers;
+}
+
+
+    // =================================================================
+    // LÓGICA DE MAPA Y FIREBASE (Existente)
+    // =================================================================
+    let map;
+    let currentMarker = null;
+    let firebaseApp;
+    let db;
+    let historicoChartInstance = null;
+
+    const DEFAULT_LAT = 19.4326; 
+    const DEFAULT_LON = -99.1332;
+
+    function initializeMap() {
+        if (document.getElementById('mapContainer')) {
+            map = L.map('mapContainer').setView([DEFAULT_LAT, DEFAULT_LON], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
         }
+    }
 
+    async function initializeFirebase() {
+        const estadoElement = document.getElementById('estado-firebase');
+        if (!userDataJSON) { estadoElement.textContent = "Usuario no autenticado."; return false; }
 
-        // =================================================================
-        // LÓGICA DE MAPA Y FIREBASE (Existente)
-        // =================================================================
-        let map;
-        let currentMarker = null;
-        let firebaseApp;
-        let db;
+        try {
+            const firebaseConfig = { databaseURL: "https://greenroot-6dbfe-default-rtdb.firebaseio.com/" };
+            firebaseApp = firebase.initializeApp(firebaseConfig);
+            db = firebase.database(); 
+            estadoElement.innerHTML = `<i class="fas fa-check-circle" style="color: var(--primary-green);"></i> Conectado al RTDB.`;
+            return true;
+        } catch (error) { 
+            estadoElement.innerHTML = `<i class="fas fa-times-circle" style="color: var(--danger-red);"></i> ERROR: ${error.message.split(":")[0] || "No se pudo conectar"}`;
+            return false;
+        }
+    }
+
+    function updateHumedadNotification(humedad) {
+        const notificacionElement = document.getElementById('humedad-notificacion');
+        if (!notificacionElement) return;
+
+        notificacionElement.style.display = 'flex'; // Mostrar el elemento
+
+        let mensaje = '';
+        let claseStatus = '';
+        let icono = '';
         
-        const DEFAULT_LAT = 19.4326; 
-        const DEFAULT_LON = -99.1332;
+        const humDisplay = humedad.toFixed(0);
 
-        function initializeMap() {
-            if (document.getElementById('mapContainer')) {
-                map = L.map('mapContainer').setView([DEFAULT_LAT, DEFAULT_LON], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                }).addTo(map);
-            }
-        }
-
-        async function initializeFirebase() {
-            const estadoElement = document.getElementById('estado-firebase');
-            if (!userData) { estadoElement.textContent = "Usuario no autenticado."; return false; }
-
-            try {
-                const firebaseConfig = { databaseURL: "https://greenroot-6dbfe-default-rtdb.firebaseio.com/" };
-                firebaseApp = firebase.initializeApp(firebaseConfig);
-                db = firebase.database(); 
-                estadoElement.innerHTML = `<i class="fas fa-check-circle" style="color: var(--primary-green);"></i> Conectado al RTDB.`;
-                return true;
-            } catch (error) { 
-                estadoElement.innerHTML = `<i class="fas fa-times-circle" style="color: var(--danger-red);"></i> ERROR: ${error.message.split(":")[0] || "No se pudo conectar"}`;
-                return false;
-            }
+        // Lógica de umbrales solicitada
+        if (humedad > 50) {
+            // > 50%: Se está ahogando (PELIGRO)
+            mensaje = `¡ALERTA! La planta **se está ahogando** (${humDisplay}%).`;
+            claseStatus = 'status-danger';
+            icono = 'fas fa-exclamation-triangle';
+        } else if (humedad >= 20 && humedad <= 50) {
+            // 20% - 50%: Está bien de agua (ÉXITO)
+            mensaje = `La planta **está bien de agua** (${humDisplay}%).`;
+            claseStatus = 'status-success';
+            icono = 'fas fa-check-circle';
+        } else { // Humedad < 20
+            // < 20%: Necesita agua (ADVERTENCIA)
+            mensaje = `La planta **necesita agua** (${humDisplay}%).`;
+            claseStatus = 'status-warning';
+            icono = 'fas fa-hand-holding-water';
         }
         
-        function loadSensorData() {
-            // Lógica de carga de datos del sensor de Firebase... (mantenida del código anterior)
-            if (!db) return;
-            const greenrootsRef = db.ref('greenroots'); 
-            const humElement = document.getElementById('humedad-sensor');
-            const latElement = document.getElementById('latitud-sensor');
-            const lonElement = document.getElementById('longitud-sensor');
-            const estadoElement = document.getElementById('estado-firebase');
-            const ultimaActElement = document.getElementById('ultima-actualizacion');
-            
-            greenrootsRef.on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    const humedad = data.humedad !== undefined ? parseFloat(data.humedad).toFixed(1) : '--';
-                    const latitud = data.latitud !== undefined ? parseFloat(data.latitud) : null;
-                    const longitud = data.longitud !== undefined ? parseFloat(data.longitud) : null;
-                    humElement.textContent = humedad;
-                    latElement.textContent = latitud !== null ? latitud.toFixed(6) : '--';
-                    lonElement.textContent = longitud !== null ? longitud.toFixed(6) : '--';
+        notificacionElement.innerHTML = `<i class="${icono}"></i> ${mensaje}`;
+        // Asigna la clase de estado actual
+        notificacionElement.className = 'notificacion-humedad ' + claseStatus; 
+    }
+    
+    function loadSensorData() {
+        // Lógica de carga de datos del sensor de Firebase... (mantenida del código anterior)
+        if (!db) return;
+        const greenrootsRef = db.ref('greenroots'); 
+        const humElement = document.getElementById('humedad-sensor');
+        const latElement = document.getElementById('latitud-sensor');
+        const lonElement = document.getElementById('longitud-sensor');
+        const estadoElement = document.getElementById('estado-firebase');
+        const ultimaActElement = document.getElementById('ultima-actualizacion');
+        const notifElement = document.getElementById('humedad-notificacion'); // Definir el elemento de notificación
 
-                    if (map && latitud !== null && longitud !== null) {
-                        const newLatLng = new L.LatLng(latitud, longitud);
-                        if (currentMarker) currentMarker.setLatLng(newLatLng);
-                        else currentMarker = L.marker(newLatLng).addTo(map).bindPopup('Sensor GreenRoots').openPopup();
-                        if (!map.getBounds().contains(newLatLng)) map.setView(newLatLng, 13);
-                    }
-                    estadoElement.innerHTML = `<i class="fas fa-check-circle" style="color: var(--primary-green);"></i> Monitoreando RTDB.`;
-                    ultimaActElement.textContent = new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit', second: '2-digit'});
-                } else {
-                    // ... manejo de datos vacíos ...
+        greenrootsRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const humedad = data.humedad !== undefined ? parseFloat(data.humedad).toFixed(1) : null;
+                const humedadNum = humedad !== null ? parseFloat(humedad) : null; // ⬅️ CORRECCIÓN DE ERROR
+                const latitud = data.latitud !== undefined ? parseFloat(data.latitud) : null;
+                const longitud = data.longitud !== undefined ? parseFloat(data.longitud) : null;
+                
+                humElement.textContent = humedad !== null ? humedad : '--';
+                latElement.textContent = latitud !== null ? latitud.toFixed(6) : '--';
+                lonElement.textContent = longitud !== null ? longitud.toFixed(6) : '--';
+                
+                if (humedadNum !== null) {
+                    updateHumedadNotification(humedadNum); 
+                } else if (notifElement) {
+                    // Si hay datos pero la humedad es nula, mostrar mensaje de dato faltante
+                    notifElement.className = 'notificacion-humedad status-warning'; 
+                    notifElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Dato de humedad no disponible.';
+                    notifElement.style.display = 'flex';
                 }
-            }, (error) => {
-                // ... manejo de errores ...
+                
+                if (map && latitud !== null && longitud !== null) {
+                    const newLatLng = new L.LatLng(latitud, longitud);
+                    if (currentMarker) currentMarker.setLatLng(newLatLng);
+                    else currentMarker = L.marker(newLatLng).addTo(map).bindPopup('Sensor GreenRoots').openPopup();
+                    if (!map.getBounds().contains(newLatLng)) map.setView(newLatLng, 13);
+                }
+                estadoElement.innerHTML = `<i class="fas fa-check-circle" style="color: var(--primary-green);"></i> Monitoreando RTDB.`;
+                ultimaActElement.textContent = new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit', second: '2-digit'});
+            } else {
+                // ... manejo de datos vacíos ...
+            }
+        }, (error) => {
+            // ... manejo de errores ...
+        });
+    }
+    
+    // =================================================================
+    // LÓGICA DE GESTIÓN DE EVENTOS (Adaptada de admin_panel.html)
+    // =================================================================
+
+    /**
+    * Carga TODOS los eventos (web y móvil) de la API.
+    * Endpoint: GET /api/eventos/activos
+    */
+    async function loadEventos() {
+    const eventosContainer = document.getElementById('eventosContainer');
+    eventosContainer.innerHTML = '<p style="padding: 1.5rem;"><i class="fas fa-spinner fa-spin"></i> Cargando eventos...</p>';
+    
+    // 1. Obtener datos de usuario y token
+    const token = userData?.token; 
+    const voluntarioId = userData?.id; // ID del usuario autenticado (necesario para verificar si está unido)
+    
+    if (!userData || !token || !voluntarioId) {
+        eventosContainer.innerHTML = '<p style="color: var(--danger-red); padding: 1.5rem;"><i class="fas fa-user-lock"></i> No autenticado. Inicia sesión para ver las actividades.</p>';
+        return;
+    }
+
+    try {
+        // 2. Realizar la solicitud incluyendo el token de autorización
+        const headers = getAuthHeaders(); // Función que añade el token al header
+        // Usamos la ruta genérica /api/eventos (asumiendo que devuelve activos o la ajustas en tu backend)
+        // Si la ruta /eventos/activos no requiere auth, quita 'headers' del fetch
+        const response = await fetch(`${API_URL}/eventos/activos`, {
+            method: 'GET',
+            headers: headers, // Añadimos el header de autenticación
+        });
+        
+        const data = await response.json();
+
+        if (!response.ok) {
+            eventosContainer.innerHTML = `<p style="color: var(--danger-red); padding: 1.5rem;"><i class="fas fa-exclamation-circle"></i> Error ${response.status}: ${data.mensaje || 'Error al cargar eventos.'}</p>`;
+            return;
+        }
+        
+        const eventos = data.eventos || [];
+        
+        // 3. Actualizar contador en la tarjeta
+    
+        
+        eventosContainer.innerHTML = '';
+        
+        // 4. Renderizar eventos y manejar el estado de participación
+        eventos.slice(0, 5).forEach(evento => { 
+    const fechaObj = new Date(evento.fecha);
+    const esFechaValida = !isNaN(fechaObj.getTime());
+    
+    let dia, mes;
+
+    if (esFechaValida) {
+        dia = fechaObj.getDate().toString().padStart(2, '0');
+        mes = fechaObj.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase().replace('.', '');
+    } else {
+        dia = '??';
+        mes = 'FECHA';
+    }
+    
+    const eventoItem = document.createElement('div');
+    eventoItem.className = 'activity-item';
+    eventoItem.innerHTML = `
+        <div class="activity-date">
+            <span class="day">${dia}</span>
+            <span class="month">${mes}</span>
+        </div>
+        <div class="activity-info">
+            <h4>${evento.titulo}</h4>
+            <p><i class="fas fa-map-marker-alt"></i> ${evento.ubicacion || 'Ubicación pendiente'}</p>
+            <p><i class="fas fa-clock"></i> ${evento.hora || 'Hora pendiente'}</p>
+            <p><i class="fas fa-users"></i> ${evento.participantes.length} participantes</p>
+        </div>
+    `;
+    eventosContainer.appendChild(eventoItem);
+});
+
+    } catch (error) {
+        console.error("Error al obtener eventos:", error);
+        eventosContainer.innerHTML = '<p style="color: var(--danger-red); padding: 1.5rem;"><i class="fas fa-exclamation-circle"></i> Error de conexión con el servidor.</p>';
+    }
+}
+    
+    /**
+     * Elimina un evento. Se hace global para ser llamado desde el HTML.
+     */
+    async function deleteEvento(id) {
+        if (!confirm('¿Seguro que deseas eliminar este evento?')) return;
+        
+        try {
+            const headers = getAuthHeaders(); // ⬅️ CORRECCIÓN: Se llama a getAuthHeaders()
+            if (!headers['Authorization']) { throw new Error("Fallo de Autenticación."); }
+
+            const response = await fetch(`${API_URL}/admin/eventos/${id}`, {
+                method: 'DELETE',
+                headers: headers
             });
-        }
-        
-        // =================================================================
-        // NUEVO: LÓGICA DE GESTIÓN DE EVENTOS (Adaptada de admin_panel.html)
-        // =================================================================
-
-        /**
-         * Carga los eventos de la API y los muestra.
-         */
-        async function loadEventos() {
-            const eventoList = document.getElementById('eventoList');
-            eventoList.innerHTML = '<p style="text-align: center;"><i class="fas fa-spinner fa-spin"></i> Cargando eventos...</p>';
             
-            try {
-                const headers = getAuthHeaders();
-                if (!headers['Authorization']) { throw new Error("Fallo de Autenticación: Token no disponible."); }
-
-                const response = await fetch(`${API_URL}/admin/eventos`, {
-                    headers: headers
-                });
-                
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(data.mensaje || 'Error al cargar eventos');
-                }
-                
-                displayEventos(data.eventos || []);
-                
-            } catch (error) {
-                console.error('Error loading eventos:', error);
-                eventoList.innerHTML = `<p style="color: var(--danger-red); text-align: center;"><i class="fas fa-exclamation-circle"></i> Error al cargar eventos: ${error.message}</p>`;
-            }
-        }
-
-        /**
-         * Renderiza la lista de eventos en el DOM.
-         */
-        function displayEventos(eventos) {
-            const eventoList = document.getElementById('eventoList');
-            eventoList.innerHTML = '';
+            const data = await response.json();
             
-            if (eventos.length === 0) {
-                eventoList.innerHTML = '<p style="text-align: center; color: var(--text-light);">No hay eventos creados.</p>';
+            if (!response.ok) {
+                alert(`Error al eliminar: ${data.mensaje}`);
                 return;
             }
             
-            eventos.forEach(evento => {
-                const eventoItem = document.createElement('div');
-                eventoItem.style.cssText = 'background: var(--light-bg); padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 5px solid var(--primary-green); box-shadow: 0 2px 5px rgba(0,0,0,0.05);';
-                
-                const fechaEvento = evento.fecha ? new Date(evento.fecha).toLocaleDateString('es-ES') : 'N/A';
-                const horaEvento = evento.hora || 'No especificada';
-                
-                eventoItem.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: start;">
-                        <div style="flex: 1;">
-                            <h4 style="margin: 0 0 10px 0; color: var(--text-dark);">
-                                ${evento.titulo} 
-                                <span style="background: ${evento.activo ? 'var(--success-green)' : 'gray'}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; font-weight: normal;">
-                                    ${evento.activo ? 'Activo' : 'Inactivo'}
-                                </span>
-                            </h4>
-                            <p style="margin: 0 0 10px 0; color: var(--text-light); font-size: 0.9rem;">${evento.descripcion}</p>
-                            <small style="color: var(--text-light); display: block; margin-bottom: 5px; font-size: 0.85rem;">
-                                <i class="fas fa-calendar"></i> Fecha: ${fechaEvento} | 
-                                <i class="fas fa-clock"></i> Hora: ${horaEvento}
-                            </small>
-                            <small style="color: #4682b4; display: block; font-size: 0.85rem;">
-                                <i class="fas fa-map-marker-alt"></i> ${evento.ubicacion || 'No especificada'}
-                            </small>
-                        </div>
-                        <div>
-                            <button onclick="deleteEvento('${evento.id}')" style="background: var(--danger-red); color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer;">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                eventoList.appendChild(eventoItem);
+            alert('Evento eliminado exitosamente.');
+            loadEventos();
+            
+        } catch (error) {
+            console.error('Error deleting evento:', error);
+            alert('Error al eliminar evento');
+        }
+    }
+    window.deleteEvento = deleteEvento; // Hacer accesible globalmente
+
+    // -----------------------------------------------------------------
+    // LÓGICA DE GRÁFICAS Y ARRANQUE
+    // -----------------------------------------------------------------
+
+    function initializeCharts() {
+        // Lógica de inicialización de gráficas... (mantenida del código anterior)
+        if (document.getElementById('temperatureChart')) {
+            const temperatureCtx = document.getElementById('temperatureChart').getContext('2d');
+            new Chart(temperatureCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['0-10°C', '11-20°C', '21-30°C', '31-40°C'],
+                    datasets: [{ label: 'Frecuencia de Lecturas', data: [15, 60, 110, 25], backgroundColor: ['rgba(52, 152, 219, 0.8)', 'rgba(46, 204, 113, 0.8)', 'rgba(243, 156, 18, 0.8)', 'rgba(231, 76, 60, 0.8)'], borderRadius: 5 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
             });
         }
+        if (document.getElementById('historicChart')) {
+            const historicCtx = document.getElementById('historicChart').getContext('2d');
+            new Chart(historicCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov'],
+                    datasets: [{ label: 'Humedad Promedio', data: [45, 55, 62, 58, 50, 48], borderColor: 'rgba(56, 102, 65, 1)', backgroundColor: 'rgba(56, 102, 65, 0.2)', fill: true, tension: 0.4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } }, scales: { y: { beginAtZero: false, max: 100 }, x: { } } }
+            });
+        }
+    }
+
+    /**
+ * Carga y grafica el histórico de árboles registrados.
+ */
+async function cargarHistoricoArboles() {
+    try {
+        const headers = getAuthHeaders(); // Se asume que getAuthHeaders() ya existe y retorna { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+
+        if (!headers['Authorization']) {
+            console.error("Fallo de Autenticación: Token no encontrado.");
+            return;
+        }
+
+        // 1. Llamar al nuevo endpoint
+        const response = await fetch(`${API_URL}/arboles/historico`, {
+            method: 'GET',
+            headers: headers
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+            console.error('Error al cargar histórico de árboles:', result.mensaje || 'Error desconocido');
+            return;
+        }
+
+        const arboles = result.arboles;
+
+        // 2. Procesar los datos: Contar árboles por mes/año de registro
+        const datosPorMes = arboles.reduce((acc, arbol) => {
+            // Usa 'fechaRegistro' o el campo que estés usando. Convierte a objeto Date.
+            const fecha = new Date(arbol.fechaRegistro);
+            // Formato 'YYYY-MM' para ordenar fácilmente
+            const mesAnio = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+
+            acc[mesAnio] = (acc[mesAnio] || 0) + 1;
+            return acc;
+        }, {});
+
+        // 3. Preparar datos para Chart.js
+        const labels = Object.keys(datosPorMes).sort(); // Ordenar cronológicamente
+        const dataPorMes = labels.map(mesAnio => datosPorMes[mesAnio]);
+
+        // Calcular el acumulado
+        let acumulado = 0;
+        const datosAcumulados = dataPorMes.map(conteo => {
+            acumulado += conteo;
+            return acumulado;
+        });
         
-        /**
-         * Elimina un evento. Se hace global para ser llamado desde el HTML.
-         */
-        async function deleteEvento(id) {
-            if (!confirm('¿Seguro que deseas eliminar este evento?')) return;
-            
-            try {
-                const headers = getAuthHeaders();
-                if (!headers['Authorization']) { throw new Error("Fallo de Autenticación."); }
+        // 4. Renderizar el gráfico
+        const ctx = document.getElementById('historicoArbolesChart').getContext('2d');
 
-                const response = await fetch(`${API_URL}/admin/eventos/${id}`, {
-                    method: 'DELETE',
-                    headers: headers
-                });
-                
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    alert(`Error al eliminar: ${data.mensaje}`);
-                    return;
-                }
-                
-                alert('Evento eliminado exitosamente.');
-                loadEventos();
-                
-            } catch (error) {
-                console.error('Error deleting evento:', error);
-                alert('Error al eliminar evento');
-            }
-        }
-        window.deleteEvento = deleteEvento; // Hacer accesible globalmente
-
-        // -----------------------------------------------------------------
-        // LÓGICA DE GRÁFICAS Y ARRANQUE
-        // -----------------------------------------------------------------
-
-        function initializeCharts() {
-            // Lógica de inicialización de gráficas... (mantenida del código anterior)
-            if (document.getElementById('temperatureChart')) {
-                const temperatureCtx = document.getElementById('temperatureChart').getContext('2d');
-                new Chart(temperatureCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['0-10°C', '11-20°C', '21-30°C', '31-40°C'],
-                        datasets: [{ label: 'Frecuencia de Lecturas', data: [15, 60, 110, 25], backgroundColor: ['rgba(52, 152, 219, 0.8)', 'rgba(46, 204, 113, 0.8)', 'rgba(243, 156, 18, 0.8)', 'rgba(231, 76, 60, 0.8)'], borderRadius: 5 }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
-                });
-            }
-            if (document.getElementById('historicChart')) {
-                const historicCtx = document.getElementById('historicChart').getContext('2d');
-                new Chart(historicCtx, {
-                    type: 'line',
-                    data: {
-                        labels: ['Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov'],
-                        datasets: [{ label: 'Humedad Promedio', data: [45, 55, 62, 58, 50, 48], borderColor: 'rgba(56, 102, 65, 1)', backgroundColor: 'rgba(56, 102, 65, 0.2)', fill: true, tension: 0.4 }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } }, scales: { y: { beginAtZero: false, max: 100 }, x: { } } }
-                });
-            }
+        // Destruir la instancia anterior si existe (importante para refrescar)
+        if (historicoChartInstance) {
+            historicoChartInstance.destroy();
         }
 
-        function logout() {
-            localStorage.clear();
-            alert("Has cerrado sesión.");
-            window.location.replace("login.html");
-        }
-        window.logout = logout; 
-
-        // Inicializar todo al cargar el documento (Lógica principal)
-        document.addEventListener('DOMContentLoaded', async () => {
-             initializeCharts(); 
-
-             if (isAllowed) {
-                initializeMap();
-                const firebaseReady = await initializeFirebase();
-                if (firebaseReady) {
-                    loadSensorData();
-                }
-                
-
-                // NUEVO: Listeners para Gestión de Eventos
-
-                // Mostrar/Ocultar lista de eventos
-                document.getElementById('showEventosBtn')?.addEventListener('click', () => {
-                    const section = document.getElementById('eventoManagementSection');
-                    const isVisible = section.style.display === 'block';
-                    section.style.display = isVisible ? 'none' : 'block';
-                    if (!isVisible) {
-                        loadEventos(); // Cargar la lista al mostrar
+        historicoChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                // Etiqueta legible para cada punto (ej: Nov 2023)
+                labels: labels.map(label => {
+                    const [year, month] = label.split('-');
+                    return new Date(year, month - 1).toLocaleString('es-ES', { month: 'short', year: 'numeric' });
+                }),
+                datasets: [{
+                    label: 'Árboles Registrados (Acumulado)',
+                    data: datosAcumulados,
+                    borderColor: 'rgb(34, 139, 34)', // Verde
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: 'rgba(34, 139, 34, 0.2)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Crecimiento Histórico de Árboles Registrados'
                     }
-                });
-                
-                // Mostrar modal de creación
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Total de Árboles'
+                        }
+                    }
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error general al cargar el histórico de árboles:', error);
+    }
+}
+
+/**
+ * Transforma un array de objetos JSON a una cadena de texto en formato CSV.
+ * @param {Array<Object>} data - Los datos a exportar.
+ * @param {string} title - Título de la sección para el CSV.
+ */
+function convertToCSV(data, title) {
+    if (data.length === 0) {
+        return `"${title} (Sin Datos)"\n\n`;
+    }
+
+    // 1. Obtener los encabezados (keys del primer objeto)
+    const headers = Object.keys(data[0]);
+    
+    // 2. Crear la fila de encabezados
+    let csv = `"${title}"\n`; // Título de la sección
+    csv += headers.map(key => `"${key}"`).join(',') + '\n'; // Encabezados entre comillas
+
+    // 3. Iterar sobre los datos para crear las filas
+    data.forEach(item => {
+        let row = headers.map(key => {
+            let value = item[key] !== undefined && item[key] !== null ? item[key] : '';
+            
+            // Convertir objetos o arrays a string JSON si es necesario
+            if (typeof value === 'object' && value !== null) {
+                value = JSON.stringify(value);
+            }
+
+            // Limpieza y manejo de comillas: encapsular y escapar comillas dobles
+            value = String(value).replace(/"/g, '""'); 
+            
+            return `"${value}"`;
+        }).join(',');
+        csv += row + '\n';
+    });
+
+    return csv + '\n'; // Separador de sección
+}
+
+/**
+ * Lógica principal para obtener los datos consolidados y descargar el archivo CSV.
+ */
+async function exportarReporteCompleto() {
+    try {
+        const headers = getAuthHeaders(); // Se asume que getAuthHeaders() existe
+
+        if (!headers['Authorization']) {
+            alert("Error: Token de autenticación no encontrado.");
+            return;
+        }
+
+        // 1. Llamar al nuevo endpoint
+        const response = await fetch(`${API_URL}/reporte/completo`, { 
+            method: 'GET',
+            headers: headers
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+            throw new Error(result.mensaje || 'Error desconocido al obtener los datos para el reporte.');
+        }
+
+        const { arboles, sensores, eventos } = result;
+
+        // 2. Generar las secciones CSV
+        let fullCsv = '';
+        
+        // Sección 1: Árboles
+        fullCsv += convertToCSV(arboles, 'REGISTRO DE ÁRBOLES');
+
+        // Sección 2: Sensores
+        fullCsv += convertToCSV(sensores, 'DATOS DE SENSORES');
+        
+        // Sección 3: Eventos
+        fullCsv += convertToCSV(eventos, 'EVENTOS DISPONIBLES');
+
+        // 3. Crear el BLOB y forzar la descarga
+        const blob = new Blob([fullCsv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.setAttribute('download', `Reporte_Completo_Gobierno_${new Date().toISOString().slice(0, 10)}.csv`);
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        URL.revokeObjectURL(url);
+        
+        alert("Reporte completo exportado exitosamente.");
+
+    } catch (error) {
+        console.error('Error al exportar el reporte completo:', error);
+        alert('Fallo al generar el reporte: ' + error.message);
+    }
+}
+
+    function logout() {
+        localStorage.clear();
+        alert("Has cerrado sesión.");
+        window.location.replace("login.html");
+    }
+    window.logout = logout; 
+
+    // Inicializar todo al cargar el documento (Lógica principal)
+    document.addEventListener('DOMContentLoaded', async () => {
+          initializeCharts(); 
+          cargarHistoricoArboles();
+          // Nota: La variable 'isAllowed' no está definida en el código que me proporcionó. 
+          // Si es una variable de protección de ruta, debe definirla al principio o
+          // reemplazar 'if (isAllowed)' con la lógica de verificación de rol.
+          // Asumo que se usa para iniciar el mapa y Firebase.
+
+          // Asignar la función al botón
+          const exportBtn = document.getElementById('exportReportBtn');
+          if (exportBtn) {
+            // Asegúrate de usar la nueva función
+              exportBtn.addEventListener('click', exportarReporteCompleto); 
+          }
+          
+
+          
+
+          const isAllowed = true; 
+
+          if (isAllowed) { 
+            initializeMap();
+            const firebaseReady = await initializeFirebase();
+            if (firebaseReady) {
+                loadSensorData();
+            }
+            
+
+            // NUEVO: Listeners para Gestión de Eventos
+
+            // Mostrar/Ocultar lista de eventos
+            document.getElementById('showEventosBtn')?.addEventListener('click', () => {
+                const section = document.getElementById('eventoManagementSection');
+                const isVisible = section.style.display === 'block';
+                section.style.display = isVisible ? 'none' : 'block';
+                if (!isVisible) {
+                    loadEventos(); // Cargar la lista al mostrar
+                }
+            });
+            
+             // Mostrar modal de creación
                 document.getElementById('createEventoBtn')?.addEventListener('click', () => {
                     document.getElementById('createEventoModal').style.display = 'flex';
                 });
@@ -593,6 +922,6 @@
                 });
              }
         });
-    </script>
+</script>
 </body>
 </html>
