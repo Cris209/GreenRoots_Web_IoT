@@ -7,7 +7,11 @@
     
     <link rel="manifest" href="/manifest.json"> 
     <link rel="stylesheet" href="/home.css">
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""/>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -145,101 +149,11 @@
                 </p>
                 
                 <div class="map-container">
-                    <h4>Mapa Interactivo - Monterrey</h4>
+                    <h4>Puntos recomendado para plantacion - Santa Catarina, NL</h4>
                     <div id="monterrey-map" class="interactive-map">
-                        <div class="map-overlay">
-                            <h5>Puntos de Reforestación en Monterrey</h5>
-                            <p>Haz clic en los puntos rojos para ver ubicaciones de plantación</p>
                         </div>
-                        <!-- Puntos GPS se generarán dinámicamente -->
-                    </div>
                     <div class="map-legend">
-                        <div class="legend-item">
-                            <span class="legend-dot red"></span>
-                            <span>Puntos de plantación activos</span>
                         </div>
-                        <div class="legend-item">
-                            <span class="legend-dot green"></span>
-                            <span>Árboles ya plantados</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Seccion de coluntarios -->
-        <section id="voluntariado" class="volunteer-section">
-            <div class="container">
-                <h2 class="section-title">Únete a Nuestro Voluntariado</h2>
-                <p class="section-subtitle">Forma parte del cambio. Registrátete y ayúdanos a reforestar nuestro planeta.</p>
-                
-                <div class="volunteer-content">
-                    <div class="volunteer-info">
-                        <h3>¿Por qué ser voluntario?</h3>
-                        <div class="benefits-list">
-                            <div class="benefit-item">
-                                <i class="fas fa-hands-helping"></i>
-                                <span>Contribuyes directamente al medio ambiente</span>
-                            </div>
-                            <div class="benefit-item">
-                                <i class="fas fa-users"></i>
-                                <span>Conoces personas con ideales similares</span>
-                            </div>
-                            <div class="benefit-item">
-                                <i class="fas fa-certificate"></i>
-                                <span>Recibes certificados de participación</span>
-                            </div>
-                            <div class="benefit-item">
-                                <i class="fas fa-trophy"></i>
-                                <span>Acceso a retos y premiaciones especiales</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <form class="volunteer-form" id="volunteerForm">
-                        <h3>Registro de Voluntario</h3>
-                        <div class="form-group">
-                            <label for="nombre">Nombre completo</label>
-                            <input type="text" id="nombre" name="nombre" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="email">Correo electrónico</label>
-                            <input type="email" id="email" name="email" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="telefono">Teléfono</label>
-                            <input type="tel" id="telefono" name="telefono" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edad">Edad</label>
-                            <select id="edad" name="edad" required>
-                                <option value="">Selecciona tu rango de edad</option>
-                                <option value="18-25">18-25 años</option>
-                                <option value="26-35">26-35 años</option>
-                                <option value="36-45">36-45 años</option>
-                                <option value="46-55">46-55 años</option>
-                                <option value="56+">56+ años</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="disponibilidad">Disponibilidad</label>
-                            <select id="disponibilidad" name="disponibilidad" required>
-                                <option value="">Selecciona tu disponibilidad</option>
-                                <option value="fines-de-semana">Fines de semana</option>
-                                <option value="entre-semana">Entre semana</option>
-                                <option value="flexible">Horario flexible</option>
-                                <option value="eventos-especiales">Solo eventos especiales</option>
-                            </select>
-                        </div>
-                        <div class="form-group checkbox-group">
-                            <input type="checkbox" id="terminos" name="terminos" required>
-                            <label for="terminos">Acepto los términos y condiciones</label>
-                        </div>
-                        <button type="submit" class="submit-btn">
-                            <i class="fas fa-seedling"></i>
-                            Unirme al Voluntariado
-                        </button>
-                    </form>
                 </div>
             </div>
         </section>
@@ -299,6 +213,21 @@
 </div>
 
 <style>
+
+    #monterrey-map.interactive-map {
+        /* Eliminamos el fondo gradiente que cubre el mapa real */
+        background: none !important; 
+        /* Restauramos el cursor por defecto del mapa */
+        cursor: grab !important;
+        /* Aseguramos que Leaflet no herede el padding interior de algún otro estilo */
+        padding: 0 !important;
+    }
+    
+    /* Necesario para anular el estilo de los puntos GPS ficticios */
+    .custom-div-icon {
+        border: none !important;
+        background: transparent !important;
+    }
     .modal {
         position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto;
         background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center;
@@ -315,7 +244,7 @@
     .modal-btn.cancel { background-color: #e74c3c; color: white; }
     .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
 </style>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
     const loginPage = "login.html";
 
@@ -391,6 +320,43 @@
         }
     }
 
+    function initLeafletMap() {
+    // 1. Coordenadas de Santa Catarina, NL
+    const SC_LAT = 25.6733; 
+    const SC_LNG = -100.4581; 
+
+    // 2. Inicializar el mapa
+    const map = L.map('monterrey-map').setView([SC_LAT, SC_LNG], 12); 
+
+    // 3. Añadir capa de OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // 4. Puntos de Reforestación Recomendados (Marcadores)
+    const reforestacionPoints = [
+        { lat: 25.632, lng: -100.485, name: "Parque Ecológico La Huasteca (Acceso)" }, // La Huasteca
+        { lat: 25.689, lng: -100.460, name: "Parque Lineal El Uro" },
+        { lat: 25.698, lng: -100.435, name: "Área Verde Cumbres" }
+    ];
+    
+    // 5. Icono personalizado (Punto Rojo)
+    const redIcon = L.divIcon({
+        className: 'custom-div-icon',
+        html: '<div style="background-color:red; width: 15px; height: 15px; border-radius: 50%; border: 2px solid white;"></div>',
+        iconSize: [15, 15],
+        iconAnchor: [7.5, 7.5]
+    });
+
+    // 6. Agregar marcadores al mapa
+    reforestacionPoints.forEach(point => {
+        L.marker([point.lat, point.lng], {icon: redIcon})
+            .addTo(map)
+            .bindPopup(`<b>${point.name}</b><br>Punto de Plantación Activo.`);
+    });
+}
+
     function checkSessionAndRenderUI() {
         const userDataJSON = localStorage.getItem("usuario");
         const authButtons = document.getElementById("authButtons");
@@ -431,15 +397,17 @@
     closeSpan.addEventListener('click', closeSessionAndRedirect); 
 
     // Inicializar la verificación al cargar la página
-    document.addEventListener('DOMContentLoaded', checkSessionAndRenderUI);
-
-    // CIERRE DE SESIÓN MANUAL
+   document.addEventListener('DOMContentLoaded', () => {
+    checkSessionAndRenderUI();
+    initLeafletMap();
+    
     document.getElementById("logoutBtn").addEventListener("click", () => {
         clearTimeout(expirationTimer); 
         localStorage.clear();
         alert("Has cerrado sesión correctamente.");
         window.location.replace(loginPage);
     });
+});
 
     // REGISTRO DEL SERVICE WORKER (PWA)
     if ('serviceWorker' in navigator) {
