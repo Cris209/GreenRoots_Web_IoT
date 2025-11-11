@@ -61,6 +61,12 @@ a:hover {
  * 3. General Form Styles (Usado por Dashboard.css)
  * Estos estilos aseguran la consistencia de los inputs en toda la app.
  * ---------------------------------- */
+.register-message-rol{
+    text-align: center;
+    font-size: 15px;
+    color: var(--danger-red);
+}
+
 
 .form-group {
     /* Define la separación y estructura de los grupos de formulario */
