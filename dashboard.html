@@ -397,15 +397,7 @@
                     </div>
                     <i class="fas fa-chevron-right toggle-arrow" id="arbolesToggleArrow"></i>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon co2">
-                        <i class="fas fa-seedling"></i> </div>
-                    <div class="stat-info">
-                        <div class="stat-label">Calidad del Suelo (OCD)</div>
-                        <span id="soil-quality-value" class="stat-number">...</span> 
-                        <span id="soil-quality-status" class="stat-trend">Cargando GPS...</span>
-                    </div>
-                </div>
+                
                 <div class="stat-card">
                     <div class="stat-icon activities"> <i class="fas fa-calendar-check"></i> </div>
                     <div class="stat-content">
@@ -1218,98 +1210,74 @@ function displayArboles(arboles) {
         // ======================================================
     // 2. NUEVA LÓGICA PARA LA CALIDAD DEL SUELO
     // ======================================================
-
+let lastSoilCall = 0; // Marca de tiempo de la última llamada exitosa (UNIX timestamp)
+const SOIL_CALL_INTERVAL = 5 * 60 * 1000; // 5 minutos en milisegundos
     /**
      * Llama al endpoint del backend para obtener la calidad del suelo por coordenadas.
      */
-    function obtenerCalidadSuelo(lat, lon, tokenArgumento) {
-    const valueElement = document.getElementById('soil-quality-value');
+   /* @param {number} lat - Latitud.
+ * @param {number} lon - Longitud.
+ * @param {string} token - Token de autenticación JWT.
+ */
+function obtenerCalidadSuelo(lat, lon, token) {
     const statusElement = document.getElementById('soil-quality-status');
-
-    valueElement.textContent = 'Buscando...';
-    statusElement.textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-
-    // 1. Obtener el token: Prioriza el argumento, si no, lo busca en localStorage
-    let token = tokenArgumento; 
-    if (!token) {
-        try {
-            const userDataJSON = localStorage.getItem('usuario');
-            if (userDataJSON) {
-                const userData = JSON.parse(userDataJSON);
-                token = userData.token; // Asumiendo que guardas el token en 'usuario.token'
-            }
-        } catch (e) {
-            console.error('Error al recuperar token de localStorage:', e);
-        }
-    }
+    const valueElement = document.getElementById('soil-quality-value');
     
-    // VERIFICACIÓN CLAVE: Si no hay token, abortar la llamada
-    if (!token) {
-        console.error('ERROR: No se encontró el token de autenticación.');
-        valueElement.textContent = 'Error';
-        statusElement.textContent = 'Requiere iniciar sesión (Token no encontrado).';
-        statusElement.className = 'stat-trend negative';
-        return; // Detiene la ejecución
+    // --- 1. LÓGICA DE THROTTLING (Limitación de Frecuencia) ---
+    const now = Date.now();
+    
+    if (now - lastSoilCall < SOIL_CALL_INTERVAL) {
+        console.log("Calidad del Suelo: Llamada omitida (Intervalo de 5 minutos activo).");
+        return; 
     }
 
-    const backendUrl = `https://greenroots-web.onrender.com/api/soil-quality/${lat}/${lon}`; 
+    lastSoilCall = now; // Actualizar el timestamp
+    // ----------------------------------------------------------
 
-    fetch(backendUrl, {
+    statusElement.textContent = 'Consultando NASA POWER...';
+    statusElement.className = 'stat-trend'; 
+
+    // ✅ La ruta debe ser /api/soil-quality/
+    const urlCalidad = `${API_URL}/soil-quality/${lat.toFixed(6)}/${lon.toFixed(6)}`;
+    
+    fetch(urlCalidad, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            // 2. Usar el token recuperado o pasado
             'Authorization': `Bearer ${token}` 
         }
     })
     .then(response => {
-        // 3. Manejar explícitamente 401/403 para un mensaje más claro
-        if (response.status === 401 || response.status === 403) {
-            // El backend envió "Acceso denegado. Se requiere token."
-            throw new Error(`Acceso denegado. Código: ${response.status}. Revisa el token.`); 
-        }
-        
         if (!response.ok) {
-            statusElement.className = 'stat-trend negative';
+            // Maneja errores HTTP como 404 o 502
             throw new Error(`Error HTTP: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
         if (data.ok) {
-            valueElement.textContent = data.calidad; 
+            // Éxito: data.humedad es la humedad del suelo de la NASA, data.valorOCD_g_kg es la Temp.
+            valueElement.textContent = `${data.humedad}%`;
+            statusElement.textContent = `${data.calidad} | ${data.unidad}`; 
             
-            // 1. Resetear la clase base
-            statusElement.className = 'stat-trend'; 
-            let colorClass = '';
-            
-            // 🚨 CORRECCIÓN CLAVE: Asignar clases de color basadas en los nuevos valores de Open-Meteo
-            if (data.calidad.includes('Buena')) {
-                colorClass = 'positive';
-            } else if (data.calidad.includes('Seco/Bajo') || data.calidad.includes('Saturado/Riesgo')) {
-                colorClass = 'negative'; 
-            } else if (data.calidad.includes('Simulada')) {
-                colorClass = 'warning'; 
+            if (data.calidad.includes('Óptima')) {
+                statusElement.className = 'stat-trend positive';
+            } else if (data.calidad.includes('Baja') || data.calidad.includes('Riesgo')) {
+                statusElement.className = 'stat-trend negative';
+            } else {
+                statusElement.className = 'stat-trend';
             }
-            
-            // 2. Aplicar la clase (solo si no es vacía)
-            if (colorClass) {
-                statusElement.classList.add(colorClass); 
-            }
-
-            statusElement.textContent = `${data.valorOCD_g_kg} ${data.unidad}`;
         } else {
-            valueElement.textContent = 'Error';
-            // Mostrar mensaje de backend, ej: "Acceso denegado..."
-            statusElement.textContent = data.mensaje || 'No se pudo obtener la calidad.'; 
-            statusElement.className = 'stat-trend negative';
+            // Backend respondió ok: false (ej. cuando la NASA no tiene datos para 7 días)
+            throw new Error(`Error lógico: ${data.mensaje}`);
         }
     })
     .catch(error => {
-        console.error('Fallo en la solicitud de Calidad del Suelo:', error);
+        console.error("Fallo en la solicitud de Calidad del Suelo:", error);
+        
+        lastSoilCall = 0; // Permite el reintento
         valueElement.textContent = 'Error';
-        // Mostrar mensaje de error más específico al usuario
-        statusElement.textContent = error.message.includes('Acceso denegado') ? 'Error de autenticación.' : 'Error de conexión.';
+        statusElement.textContent = `Fallo: ${error.message}`; 
         statusElement.className = 'stat-trend negative';
     });
 }
