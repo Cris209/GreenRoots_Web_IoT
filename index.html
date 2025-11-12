@@ -152,46 +152,10 @@
                 </div>
             </div>
         </section>
-
-        <!-- Sección de noticias (Al inicio se oculta) -->
-        <section id="novedades" class="news-section" style="display: none;">
-            <div class="container">
-                <h2 class="section-title">Novedades para Voluntarios</h2>
-                <div class="news-content">
-                    <div class="welcome-message">
-                        <h3>¡Bienvenido al equipo Green Roots! </h3>
-                        <p>Gracias por unirte a nuestra comunidad. Como voluntario registrado, tendrás acceso a contenido exclusivo y actividades especiales.</p>
-                    </div>
-                    
-                    <div class="upcoming-features">
-                        <h3>Próximamente</h3>
-                        <div class="features-grid">
-                            <div class="feature-card">
-                                <div class="feature-icon">
-                                    <i class="fas fa-medal"></i>
-                                </div>
-                                <h4>Retos Ecológicos</h4>
-                                <p>Participa en desafíos mensuales para ganar puntos y reconocimientos por tu contribución al medio ambiente.</p>
-                                <div class="coming-soon">Próximamente</div>
-                            </div>
-                            
-                            <div class="feature-card">
-                                <div class="feature-icon">
-                                    <i class="fas fa-award"></i>
-                                </div>
-                                <h4>Premiaciones Ecológicas</h4>
-                                <p>Sistema de recompensas para voluntarios destacados, incluyendo certificados, plantas gratuitas y más.</p>
-                                <div class="coming-soon">Próximamente</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
     
 </main>
 
-<footer class="footer">
+<footer class="footer" style="text-align: center;">
     <p>&copy; 2025 Green Roots. Todos los derechos reservados.</p>
 </footer>
 
@@ -356,7 +320,6 @@
         const userDataJSON = localStorage.getItem("usuario");
         const authButtons = document.getElementById("authButtons");
         const logoutBtn = document.getElementById("logoutBtn");
-        const novedadesMenuItem = document.getElementById("novedadesMenuItem");
         const dashboardMenuItem = document.getElementById("dashboardMenuItem");
         const dashboardLink = document.getElementById("dashboard-link");
 
@@ -368,7 +331,6 @@
             // Renderizamos la UI para usuarios logeados
             authButtons.style.display = 'none';
             logoutBtn.style.display = 'inline-block';
-            novedadesMenuItem.style.display = 'list-item'; 
             dashboardMenuItem.style.display = 'list-item'; // Mostrar el enlace a "Mi Panel"
 
             // Asignamos la URL correcta al enlace "Mi Panel"
@@ -380,8 +342,7 @@
         } else {
             // Usuario NO LOGEADO: Mostrar botones de autenticación
             authButtons.style.display = 'flex'; 
-            logoutBtn.style.display = 'none';
-            novedadesMenuItem.style.display = 'none'; 
+            logoutBtn.style.display = 'none'; 
             dashboardMenuItem.style.display = 'none'; // Ocultar "Mi Panel"
         }
     }
