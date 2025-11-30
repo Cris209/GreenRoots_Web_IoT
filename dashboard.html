@@ -1208,6 +1208,27 @@ function displayArboles(arboles) {
         }
 
 
+        // Obtener GPS
+        document.getElementById('btnGetGps')?.addEventListener('click', () => {
+            const gpsInput = document.getElementById('ubicacionGps');
+            gpsInput.value = "Obteniendo GPS...";
+
+            if (!navigator.geolocation) {
+                gpsInput.value = "No soportado";
+                alert("Tu navegador no soporta geolocalización.");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition((position) => {
+                const { latitude, longitude } = position.coords;
+                gpsInput.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                alert(`✅ GPS obtenido: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+            }, (error) => {
+                gpsInput.value = "Error al obtener GPS";
+                alert(`❌ Error al obtener GPS: ${error.message}. Asegúrate de permitir la geolocalización.`);
+            });
+        });
+
         // Manejar el Registro del Árbol (CONECTADO AL BACKEND)
         document.getElementById('registroArbolForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
